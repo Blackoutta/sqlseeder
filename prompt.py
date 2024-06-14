@@ -36,6 +36,7 @@ def get_prompt():
             - all fields must have a value
             - do not include 'id' field in your statement
             - values should be different from the examples given
+            - don't use NULL(upper cased) in JSON format, use null(lower cased)
             """
         )
     ])

@@ -18,7 +18,7 @@ class Agent:
         self.llm = ChatOpenAI(model=self.model,
                               temperature=0,
                               verbose=True,
-                              max_tokens=7000,
+                              max_tokens=8000,
                               api_key="EMPTY",
                               base_url="http://localhost:8000/v1",
                               )
@@ -62,7 +62,7 @@ class Agent:
                     self.counter[ft] = 1
                 else:
                     self.counter[ft] = self.counter[ft] + 1
-                if self.counter[ft] <= self.threshold:
+                if self.counter[ft] <= self.threshold && ft != target:
                     self.queue.put(ft)
         return self.generated
 
