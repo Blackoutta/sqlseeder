@@ -28,10 +28,14 @@ def get_prompt():
         ),
         HumanMessagePromptTemplate.from_template(
             """
+            Here are some examples of statements you should be generating:
+            {history}
+            
             please give me a SQL insert based on this schema:'''{ddl}'''
             Requirements:
             - all fields must have a value
             - do not include 'id' field in your statement
+            - values should be different from the examples given
             """
         )
     ])

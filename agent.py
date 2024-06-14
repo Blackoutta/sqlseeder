@@ -13,6 +13,7 @@ class Agent:
         self.queue = queue.Queue()
         self.counter = {}  # 表计数
         self.generated = []  # 已生成的SQL
+        self.gen_history = {}  # 已生成SQL的记录，注入到prompt中让大语言模型尽量避开重复的数据
         self.model = 'glm-4-9b-chat'
         self.llm = ChatOpenAI(model=self.model,
                               temperature=0,
@@ -29,16 +30,32 @@ class Agent:
         while not self.queue.empty():
             print(f'current queue size: {self.queue.qsize()}')
             target = self.queue.get()
+            # 获取目标表DLL
             ddl = self.ddl_dict.get(target)
+
+            # 获取目标表已生成的语句
+            history = self.history_as_prompt(target)
+            print(f'history: {history}')
+
+            # 大语言模型生成语句
             # print(f'ddl: {ddl}')
             chain = (get_prompt() | self.llm | OutputParser())
-            result = chain.invoke({"ddl": ddl})
+            result = chain.invoke({"ddl": ddl, "history": history})
             # ctx = result['context']
-            stmt = result['statement']
             # print(f'context: {ctx}')
+
+            # 记录生成的语句
+            stmt = result['statement']
             print(f'generated: {stmt}')
             self.generated.append(stmt)
             print(f'current generated count: {len(self.generated)}')
+
+            # 记录生成语句历史
+            if self.gen_history.get(target) is not None:
+                self.gen_history[target].append(stmt)
+            else:
+                self.gen_history[target] = [stmt]
+
             fts = result['foreign_tables']
             for ft in fts:
                 if ft not in self.counter:
@@ -48,6 +65,12 @@ class Agent:
                 if self.counter[ft] <= self.threshold:
                     self.queue.put(ft)
         return self.generated
+
+    def history_as_prompt(self, target) -> str:
+        his = self.gen_history.get(target)
+        if his is None:
+            return ""
+        return '\n'.join(his)
 
 
 if __name__ == '__main__':
@@ -62,4 +85,3 @@ if __name__ == '__main__':
     with open('./generated.txt', 'w') as g:
         for s in generated:
             g.write(s + '\n')
-            
