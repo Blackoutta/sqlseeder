@@ -62,7 +62,7 @@ class Agent:
                     self.counter[ft] = 1
                 else:
                     self.counter[ft] = self.counter[ft] + 1
-                if self.counter[ft] <= self.threshold && ft != target:
+                if self.counter[ft] <= self.threshold and ft != target:
                     self.queue.put(ft)
         return self.generated
 

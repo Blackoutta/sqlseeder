@@ -33,10 +33,12 @@ def get_prompt():
             
             please give me a SQL insert based on this schema:'''{ddl}'''
             Requirements:
-            - all fields must have a value
+            - all fields in ddl must appeara except for 'id'
+            - all fields appeared must have a valid value paired with it
             - do not include 'id' field in your statement
-            - values should be different from the examples given
+            - values should be different from the examples given, especially for fields that are highly distinguishable
             - don't use NULL(upper cased) in JSON format, use null(lower cased)
+            - for string field in JSON, only use double quote, if there is double quotes inside double quotes, escaple the double quotes inside
             """
         )
     ])
