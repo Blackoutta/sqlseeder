@@ -13,10 +13,13 @@ class Agent:
         self.queue = queue.Queue()
         self.counter = {}  # 表计数
         self.generated = []  # 已生成的SQL
-        self.model = 'glm-4'
+        self.model = 'glm-4-9b-chat'
         self.llm = ChatOpenAI(model=self.model,
-                              temperature=0.3,
+                              temperature=0,
                               verbose=True,
+                              max_tokens=7000,
+                              api_key="EMPTY",
+                              base_url="http://localhost:8000/v1",
                               )
         self.threshold = 3
 
@@ -27,10 +30,12 @@ class Agent:
             print(f'current queue size: {self.queue.qsize()}')
             target = self.queue.get()
             ddl = self.ddl_dict.get(target)
-            print(f'ddl: {ddl}')
+            # print(f'ddl: {ddl}')
             chain = (get_prompt() | self.llm | OutputParser())
             result = chain.invoke({"ddl": ddl})
+            # ctx = result['context']
             stmt = result['statement']
+            # print(f'context: {ctx}')
             print(f'generated: {stmt}')
             self.generated.append(stmt)
             print(f'current generated count: {len(self.generated)}')
@@ -51,5 +56,10 @@ if __name__ == '__main__':
 
     agent = Agent(d)
     generated = agent.generate('trading_task')
+    print('final result:')
     for s in generated:
         print(s)
+    with open('./generated.txt', 'w') as g:
+        for s in generated:
+            g.write(s + '\n')
+            

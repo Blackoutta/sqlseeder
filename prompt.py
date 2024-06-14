@@ -10,18 +10,17 @@ def get_prompt():
     return ChatPromptTemplate.from_messages([
         SystemMessagePromptTemplate.from_template(
             """
-            You are a helpful assistant that generates sql insert statements based on given ddl.
+            You are a helpful assistant that creates SQL insert statements based on given table schema.
+            Your SQL dialet is Postgres 13.
             You only respond with the follow JSON format in triple quote:
             '''
             {{
-            "statement": "sql you have generated",
-            "field_and_value": {{
-            "field_1": 1.2,
-            "field_2": "hello world",
-            "field_3": true,
-            "field_4": {},
+            "context": {{
+            "field_name_1": "value you've generated for a field",
+            "field_name_2": "value you've generated for a field",
             ...
             }},
+            "statement": "the complete SQL statement generated based on context object above",
             "foreign_tables": ["foreign table_1, foreign table_2"]
             }}
             '''
@@ -29,10 +28,10 @@ def get_prompt():
         ),
         HumanMessagePromptTemplate.from_template(
             """
-            Generate a sql insert statement based on this ddl:
-            '''
-            {ddl}
-            '''
+            please give me a SQL insert based on this schema:'''{ddl}'''
+            Requirements:
+            - all fields must have a value
+            - do not include 'id' field in your statement
             """
         )
     ])
