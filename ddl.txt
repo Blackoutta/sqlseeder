@@ -1,0 +1,899 @@
+create table account
+(
+    id         bigserial
+        primary key,
+    created_at timestamp(6) with time zone,
+    created_by varchar(255),
+    deleted_at timestamp(6) with time zone,
+    updated_at timestamp(6) with time zone,
+    updated_by varchar(255),
+    code       varchar(255),
+    name       varchar(255),
+    type       varchar(255)
+        constraint account_type_check
+            check ((type)::text = ANY (ARRAY [('INCOME'::character varying)::text, ('OUTGO'::character varying)::text]))
+);
+
+create table attachment
+(
+    id         bigserial
+        primary key,
+    created_at timestamp(6) with time zone,
+    created_by varchar(255),
+    deleted_at timestamp(6) with time zone,
+    updated_at timestamp(6) with time zone,
+    updated_by varchar(255),
+    attach_no  varchar(255),
+    base64     text
+);
+
+create table bank_head
+(
+    id   bigserial
+        primary key,
+    code varchar(255),
+    name varchar(255)
+);
+
+create table bank_branch
+(
+    id      bigserial
+        primary key,
+    enabled boolean,
+    name    varchar(255),
+    head_id bigint
+        constraint "FKkcvd91xpwoq75mmn5a91307hk"
+            references bank_head
+);
+
+create table company_base
+(
+    id             bigserial
+        primary key,
+    extension      jsonb,
+    alias          varchar(255),
+    attribute      varchar(255),
+    business_group varchar(255),
+    code           varchar(255),
+    consolidated   boolean,
+    domestic       boolean,
+    name           varchar(255)
+);
+
+create table company
+(
+    id                 bigserial
+        primary key,
+    created_at         timestamp(6) with time zone,
+    created_by         varchar(255),
+    deleted_at         timestamp(6) with time zone,
+    updated_at         timestamp(6) with time zone,
+    updated_by         varchar(255),
+    delivery_prep_days integer,
+    delivery_type      varchar(255)
+        constraint company_delivery_type_check
+            check ((delivery_type)::text = ANY
+                   (ARRAY [('FULL'::character varying)::text, ('DIF'::character varying)::text])),
+    notify_email_list  jsonb,
+    passed_email_list  jsonb,
+    supervised         boolean,
+    company_base_id    bigint
+        constraint uk_puh39gnnuikr86wh27lqc8rua
+            unique
+        constraint "FKqypbait7jhoo2j1c4fnf04cmi"
+            references company_base
+);
+
+create table company_account
+(
+    id         bigserial
+        primary key,
+    created_at timestamp(6) with time zone,
+    created_by varchar(255),
+    deleted_at timestamp(6) with time zone,
+    updated_at timestamp(6) with time zone,
+    updated_by varchar(255),
+    enabled    boolean,
+    account_id bigint
+        constraint "FK3ect1oadg21w90p5br3t89r49"
+            references account,
+    company_id bigint
+        constraint "FK5htbulymiuwhwgs3o2srye5yg"
+            references company
+);
+
+create table currency
+(
+    id   bigserial
+        primary key,
+    code varchar(255),
+    name varchar(255)
+);
+
+create table bank_account
+(
+    id              bigserial
+        primary key,
+    account_no      varchar(255),
+    name            varchar(255),
+    branch_id       bigint
+        constraint "FKpyx8j0g7518kk5jtpk9n4jkgu"
+            references bank_branch,
+    company_base_id bigint
+        constraint "FKk13mo8c4dqrgysy13urqagyiu"
+            references company_base,
+    currency_id     bigint
+        constraint "FKks4n2mw4ksdvfcottkwhu9y2d"
+            references currency
+);
+
+create table company_currency
+(
+    id                     bigserial
+        primary key,
+    created_at             timestamp(6) with time zone,
+    created_by             varchar(255),
+    deleted_at             timestamp(6) with time zone,
+    updated_at             timestamp(6) with time zone,
+    updated_by             varchar(255),
+    fut_mon_avg_bias_limit numeric(38, 2),
+    mom_bias_limit         numeric(38, 2),
+    mon_avg_bias_limit     numeric(38, 2),
+    payment_period         integer,
+    comp_currency_id       bigint
+        constraint "FKt6ajykrwbetyof7i00e1ev793"
+            references currency,
+    company_id             bigint
+        constraint "FKmnxn0sik05tdmxvhj332ef42j"
+            references company
+);
+
+create table entity_extension_schema
+(
+    id     bigserial
+        primary key,
+    entity varchar(255),
+    key    varchar(255),
+    label  varchar(255)
+);
+
+create table exposure_record
+(
+    id            bigserial
+        primary key,
+    created_at    timestamp(6) with time zone,
+    created_by    varchar(255),
+    deleted_at    timestamp(6) with time zone,
+    updated_at    timestamp(6) with time zone,
+    updated_by    varchar(255),
+    key           varchar(255),
+    reject_reason varchar(255),
+    status        varchar(255)
+        constraint exposure_record_status_check
+            check ((status)::text = ANY
+                   (ARRAY [('PENDING'::character varying)::text, ('SUBMITTED'::character varying)::text, ('APPROVING'::character varying)::text, ('APPROVED'::character varying)::text, ('REJECTED'::character varying)::text, ('CANCELED'::character varying)::text, ('DELETED'::character varying)::text, ('FINISH'::character varying)::text])),
+    code          varchar(255),
+    year_month    integer
+);
+
+create table exposure_record_entry
+(
+    id                     bigserial
+        primary key,
+    created_at             timestamp(6) with time zone,
+    created_by             varchar(255),
+    deleted_at             timestamp(6) with time zone,
+    updated_at             timestamp(6) with time zone,
+    updated_by             varchar(255),
+    bias_comment           varchar(255),
+    comment                varchar(255),
+    company_id             bigint,
+    currency_id            bigint,
+    fut_mon_avg_bias_limit numeric(38, 2),
+    mom_bias_limit         numeric(38, 2),
+    mon_avg_bias_limit     numeric(38, 2),
+    payment_period         integer,
+    payable_mi             numeric(38, 2),
+    receivable_mi          numeric(38, 2),
+    volume_actual          integer,
+    volume_predictions     jsonb,
+    record_id              bigint
+        constraint "FKfglrtdkp7xenknibbpsii99tv"
+            references exposure_record
+);
+
+create table exposure_record_detail
+(
+    id                 bigserial
+        primary key,
+    created_at         timestamp(6) with time zone,
+    created_by         varchar(255),
+    deleted_at         timestamp(6) with time zone,
+    updated_at         timestamp(6) with time zone,
+    updated_by         varchar(255),
+    amount_actual      numeric(38, 2),
+    amount_predictions jsonb,
+    company_account_id bigint
+        constraint "FK626040ghhjo05bdmggqgvpn6j"
+            references company_account,
+    entry_id           bigint
+        constraint "FK8r2yva12nx319w232px4ouxdu"
+            references exposure_record_entry
+);
+
+create table exposure_record_permission
+(
+    id         bigserial
+        primary key,
+    created_at timestamp(6) with time zone,
+    created_by varchar(255),
+    deleted_at timestamp(6) with time zone,
+    updated_at timestamp(6) with time zone,
+    updated_by varchar(255),
+    company_id bigint,
+    user_id    bigint
+);
+
+create table general_user
+(
+    id                bigserial
+        primary key,
+    extension         jsonb,
+    employee_number   varchar(255),
+    organization_name varchar(255),
+    user_id           varchar(255)
+);
+
+create table company_channel_config
+(
+    id                   bigserial
+        primary key,
+    created_at           timestamp(6) with time zone,
+    created_by           varchar(255),
+    deleted_at           timestamp(6) with time zone,
+    updated_at           timestamp(6) with time zone,
+    updated_by           varchar(255),
+    company_id           bigint
+        constraint "FKm9kn31bwgsux81enaiikh5ufu"
+            references company,
+    default_trader_id    bigint
+        constraint "FK9my1kkc0bklj5551p2s6mnyhr"
+            references general_user,
+    exposure_currency_id bigint
+        constraint "FK406lw0c4xbpd5htncu9pdlqya"
+            references currency,
+    hedge_currency_id    bigint
+        constraint "FK6fo5ms24s1y9jg36li5r6dmeo"
+            references currency
+);
+
+create table company_channel_config_general_user
+(
+    company_channel_config_id bigint not null
+        constraint "FKlkk888u507rxx74qxrq9drk0a"
+            references company_channel_config,
+    trader_list_id            bigint not null
+        constraint "FKsni3kf7mucrnd7oivpus0n99r"
+            references general_user
+);
+
+create table hedge_group
+(
+    id                bigserial
+        primary key,
+    created_at        timestamp(6) with time zone,
+    created_by        varchar(255),
+    deleted_at        timestamp(6) with time zone,
+    updated_at        timestamp(6) with time zone,
+    updated_by        varchar(255),
+    key               varchar(255),
+    reject_reason     varchar(255),
+    status            varchar(255)
+        constraint hedge_group_status_check
+            check ((status)::text = ANY
+                   (ARRAY [('PENDING'::character varying)::text, ('SUBMITTED'::character varying)::text, ('APPROVING'::character varying)::text, ('APPROVED'::character varying)::text, ('REJECTED'::character varying)::text, ('CANCELED'::character varying)::text, ('DELETED'::character varying)::text, ('FINISH'::character varying)::text])),
+    code              varchar(255),
+    comment           varchar(255),
+    name              varchar(255),
+    delegate_id       bigint
+        constraint "FKjfk9ujj1jy534gihhpekd7lf5"
+            references company,
+    group_currency_id bigint
+        constraint "FKrv0mpsjwubk601gavqjfl2jff"
+            references currency,
+    master_id         bigint
+        constraint "FK3lyuh8bvtkc6x52kfb4ykib7r"
+            references company_currency
+);
+
+create table hedge_master
+(
+    id                  bigserial
+        primary key,
+    created_at          timestamp(6) with time zone,
+    created_by          varchar(255),
+    deleted_at          timestamp(6) with time zone,
+    updated_at          timestamp(6) with time zone,
+    updated_by          varchar(255),
+    company_currency_id bigint
+        constraint "FKbuvnjv3pd52g000misblosqw6"
+            references company_currency,
+    group_id            bigint
+        constraint uk_oe7t6m36va0l9un5oj6k2pai1
+            unique
+        constraint "FKnpqf09k7l88su58gfh4lixwsg"
+            references hedge_group
+);
+
+create table hedge_member
+(
+    id                  bigserial
+        primary key,
+    created_at          timestamp(6) with time zone,
+    created_by          varchar(255),
+    deleted_at          timestamp(6) with time zone,
+    updated_at          timestamp(6) with time zone,
+    updated_by          varchar(255),
+    company_currency_id bigint
+        constraint "FK3jofko6usc4hflxbuqh3648ga"
+            references company_currency,
+    group_id            bigint
+        constraint "FKsd2vocjowe9qeahnx1wpf0fo1"
+            references hedge_group
+);
+
+create table hedge_plan
+(
+    id              bigserial
+        primary key,
+    created_at      timestamp(6) with time zone,
+    created_by      varchar(255),
+    deleted_at      timestamp(6) with time zone,
+    updated_at      timestamp(6) with time zone,
+    updated_by      varchar(255),
+    approval_status varchar(255)
+        constraint hedge_plan_approval_status_check
+            check ((approval_status)::text = ANY
+                   (ARRAY [('PENDING'::character varying)::text, ('SUBMITTED'::character varying)::text, ('APPROVING'::character varying)::text, ('APPROVED'::character varying)::text, ('REJECTED'::character varying)::text, ('CANCELED'::character varying)::text, ('DELETED'::character varying)::text, ('FINISH'::character varying)::text])),
+    plan_no         varchar(255),
+    year_month      integer
+);
+
+create table hedge_plan_entry
+(
+    id                   bigserial
+        primary key,
+    created_at           timestamp(6) with time zone,
+    created_by           varchar(255),
+    deleted_at           timestamp(6) with time zone,
+    updated_at           timestamp(6) with time zone,
+    updated_by           varchar(255),
+    month_term           integer,
+    remark               varchar(255),
+    company_currency_id  bigint
+        constraint "FK86yci8b9mbbnfb4blcw8586bh"
+            references company_currency,
+    exposure_currency_id bigint
+        constraint "FKemvxfur9umvgg9we6f0ewk3bu"
+            references currency,
+    hedge_currency_id    bigint
+        constraint "FKjhh9rechlrdsd4c41q22l4il2"
+            references currency,
+    hedge_group_id       bigint
+        constraint "FKe4kty7hx51ho8hhj6jg59w6q4"
+            references hedge_group,
+    plan_id              bigint
+        constraint "FKcoxcy79ohpsxd7edbknenpr25"
+            references hedge_plan
+);
+
+create table hedge_plan_detail
+(
+    id         bigserial
+        primary key,
+    created_at timestamp(6) with time zone,
+    created_by varchar(255),
+    deleted_at timestamp(6) with time zone,
+    updated_at timestamp(6) with time zone,
+    updated_by varchar(255),
+    amount     numeric(38, 2),
+    year_month integer,
+    entry_id   bigint
+        constraint "FK4k9jwb2b7iedw5ync4rp6vn99"
+            references hedge_plan_entry,
+    master_id  bigint
+        constraint "FKokai9lmyrtq9asr06yaes8cyg"
+            references company
+);
+
+create table hedge_plan_attachment
+(
+    hedge_plan_id      bigint not null
+        constraint "FKjqqgvot86cbsapwmtxjm5adt4"
+            references hedge_plan,
+    attachment_list_id bigint not null
+        constraint uk_3b649mpfe4uu1numom6vpvrxb
+            unique
+        constraint "FK9f33tja2qpo9tm97axr43kp6j"
+            references attachment
+);
+
+create table hedge_ratio_record_model
+(
+    id            bigserial
+        primary key,
+    created_at    timestamp(6) with time zone,
+    created_by    varchar(255),
+    deleted_at    timestamp(6) with time zone,
+    updated_at    timestamp(6) with time zone,
+    updated_by    varchar(255),
+    key           varchar(255),
+    reject_reason varchar(255),
+    status        varchar(255)
+        constraint hedge_ratio_record_model_status_check
+            check ((status)::text = ANY
+                   (ARRAY [('PENDING'::character varying)::text, ('SUBMITTED'::character varying)::text, ('APPROVING'::character varying)::text, ('APPROVED'::character varying)::text, ('REJECTED'::character varying)::text, ('CANCELED'::character varying)::text, ('DELETED'::character varying)::text, ('FINISH'::character varying)::text])),
+    adjust_reason varchar(255),
+    content       text,
+    valid_time    timestamp(6) with time zone
+);
+
+create table hedge_ratio_entry_model
+(
+    id                     bigserial
+        primary key,
+    created_at             timestamp(6) with time zone,
+    created_by             varchar(255),
+    deleted_at             timestamp(6) with time zone,
+    updated_at             timestamp(6) with time zone,
+    updated_by             varchar(255),
+    company_id             bigint,
+    currency_id            bigint,
+    fut_mon_avg_bias_limit numeric(38, 2),
+    mom_bias_limit         numeric(38, 2),
+    mon_avg_bias_limit     numeric(38, 2),
+    payment_period         integer,
+    month1                 integer,
+    month10                integer,
+    month11                integer,
+    month12                integer,
+    month2                 integer,
+    month3                 integer,
+    month4                 integer,
+    month5                 integer,
+    month6                 integer,
+    month7                 integer,
+    month8                 integer,
+    month9                 integer,
+    record_model_id        bigint
+        constraint "FK2qaea1rf1o5j2u03xao1hm8an"
+            references hedge_ratio_record_model
+);
+
+create table hedge_ratio_record_model_attachment
+(
+    hedge_ratio_record_model_id bigint not null
+        constraint "FKo3mpmrone5iaggl3n9drimpur"
+            references hedge_ratio_record_model,
+    attachment_list_id          bigint not null
+        constraint uk_1e0gr08dfbh7qp8g57r09a2yh
+            unique
+        constraint "FKnwywfvogba8wb6x0gne1fc50r"
+            references attachment
+);
+
+create table hedge_ratio_record_model_hedge_ratio_entry_model
+(
+    hedge_ratio_record_model_id bigint not null
+        constraint "FKirrefbootwrmog9fomj8c3r8j"
+            references hedge_ratio_record_model,
+    entry_model_list_id         bigint not null
+        constraint uk_ehgj10v10xr81kgl47iqncb43
+            unique
+        constraint "FKr88nkky06i0jg0fp0vmpr2gr1"
+            references hedge_ratio_entry_model
+);
+
+create table hedge_virtual_plan_detail
+(
+    id                   bigserial
+        primary key,
+    created_at           timestamp(6) with time zone,
+    created_by           varchar(255),
+    deleted_at           timestamp(6) with time zone,
+    updated_at           timestamp(6) with time zone,
+    updated_by           varchar(255),
+    coefficient          numeric(38, 2),
+    hedge_plan_detail_id bigint
+        constraint "FK4weasehnl9n31ebd0hqwxdks2"
+            references hedge_plan_detail
+);
+
+create table hedge_virtual_plan_entry
+(
+    id                  bigserial
+        primary key,
+    created_at          timestamp(6) with time zone,
+    created_by          varchar(255),
+    deleted_at          timestamp(6) with time zone,
+    updated_at          timestamp(6) with time zone,
+    updated_by          varchar(255),
+    company_currency_id bigint
+        constraint "FKaxh2aw8hcfw7upgc5vtmufnan"
+            references company_currency,
+    hedge_plan_entry_id bigint
+        constraint "FK8t8vv5gdh46qu367u6hlkyhxe"
+            references hedge_plan_entry
+);
+
+create table hedge_virtual_plan_entry_hedge_virtual_plan_detail
+(
+    hedge_virtual_plan_entry_id bigint not null
+        constraint "FK1g827fpxqucmnblwa9iag10k6"
+            references hedge_virtual_plan_entry,
+    details_id                  bigint not null
+        constraint uk_h6qilvavgdjrnlpvt5kdw01d4
+            unique
+        constraint "FKkp56vm8dv96hnsmhg2jrcfmq9"
+            references hedge_virtual_plan_detail
+);
+
+create table instruction
+(
+    id                  bigserial
+        primary key,
+    created_at          timestamp(6) with time zone,
+    created_by          varchar(255),
+    deleted_at          timestamp(6) with time zone,
+    updated_at          timestamp(6) with time zone,
+    updated_by          varchar(255),
+    assign_status       varchar(255)
+        constraint instruction_assign_status_check
+            check ((assign_status)::text = ANY
+                   (ARRAY [('PENDING'::character varying)::text, ('PARTIAL_ASSIGNED'::character varying)::text, ('ASSIGNED'::character varying)::text])),
+    assigned_volumem    numeric(38, 2) default 0,
+    confirmed_volumem   numeric(38, 2),
+    execute_status      varchar(255)
+        constraint instruction_execute_status_check
+            check ((execute_status)::text = ANY
+                   (ARRAY [('PENDING'::character varying)::text, ('EXECUTING'::character varying)::text, ('TRADED'::character varying)::text, ('FINISH'::character varying)::text, ('TERMINATED'::character varying)::text])),
+    "from"              varchar(255)
+        constraint instruction_from_check
+            check (("from")::text = 'HEDGE_PLAN'::text),
+    generated_time      timestamp(6) with time zone,
+    instruction_no      varchar(255),
+    trade_direction     varchar(255)
+        constraint instruction_trade_direction_check
+            check ((trade_direction)::text = ANY
+                   (ARRAY [('BUY'::character varying)::text, ('SELL'::character varying)::text])),
+    traded_volumem      numeric(38, 2) default 0,
+    trading_volumem     numeric(38, 2) default 0,
+    hedge_plan_entry_id bigint
+        constraint "FKoog6ib5vb47tfgjluuqxwcxmk"
+            references hedge_plan_entry,
+    master_id           bigint
+        constraint "FK26lngauw7f4n6sy7jhtoxh675"
+            references company
+);
+
+create table instruction_detail
+(
+    id                   bigserial
+        primary key,
+    created_at           timestamp(6) with time zone,
+    created_by           varchar(255),
+    deleted_at           timestamp(6) with time zone,
+    updated_at           timestamp(6) with time zone,
+    updated_by           varchar(255),
+    assigned_volumem     numeric(38, 2) default 0,
+    confirmed_volumem    numeric(38, 2) default 0,
+    inquire_times        integer        default 0 not null,
+    sequence_no          varchar(255),
+    traded_volumem       numeric(38, 2) default 0,
+    trading_times        integer        default 0 not null,
+    trading_volumem      numeric(38, 2) default 0,
+    hedge_plan_detail_id bigint
+        constraint uk_tp3xo6jx7bjr1101rtske1p6w
+            unique
+        constraint "FK6uypn5q5yxro7xbygu4wdba5v"
+            references hedge_plan_detail,
+    instruction_id       bigint
+        constraint "FK2vdo3nweip1amqwgd33pk1rxv"
+            references instruction
+);
+
+create table test_approval_entity
+(
+    id            bigserial
+        primary key,
+    created_at    timestamp(6) with time zone,
+    created_by    varchar(255),
+    deleted_at    timestamp(6) with time zone,
+    updated_at    timestamp(6) with time zone,
+    updated_by    varchar(255),
+    key           varchar(255),
+    reject_reason varchar(255),
+    status        varchar(255)
+        constraint test_approval_entity_status_check
+            check ((status)::text = ANY
+                   (ARRAY [('PENDING'::character varying)::text, ('SUBMITTED'::character varying)::text, ('APPROVING'::character varying)::text, ('APPROVED'::character varying)::text, ('REJECTED'::character varying)::text, ('CANCELED'::character varying)::text, ('DELETED'::character varying)::text, ('FINISH'::character varying)::text])),
+    value         varchar(255)
+);
+
+create table trade_confirmation
+(
+    id             bigserial
+        primary key,
+    created_at     timestamp(6) with time zone,
+    created_by     varchar(255),
+    deleted_at     timestamp(6) with time zone,
+    updated_at     timestamp(6) with time zone,
+    updated_by     varchar(255),
+    trade_order_id bigint
+);
+
+create table trader_setting
+(
+    id                    bigserial
+        primary key,
+    created_at            timestamp(6) with time zone,
+    created_by            varchar(255),
+    deleted_at            timestamp(6) with time zone,
+    updated_at            timestamp(6) with time zone,
+    updated_by            varchar(255),
+    bloom_berg_account    varchar(255),
+    bloom_berg_pwd        varchar(255),
+    cfm_receipt_email     varchar(255),
+    cfm_receipt_email_pwd varchar(255),
+    we_com_account        varchar(255),
+    trader_id             bigint
+        constraint uk_fw6hh1gn6ape3pmpll9ou9kwi
+            unique
+        constraint "FKf42siqcolnxeuixh4lfvpblf1"
+            references general_user
+);
+
+create table trading_task
+(
+    id                  bigserial
+        primary key,
+    created_at          timestamp(6) with time zone,
+    created_by          varchar(255),
+    deleted_at          timestamp(6) with time zone,
+    updated_at          timestamp(6) with time zone,
+    updated_by          varchar(255),
+    assign_time         timestamp(6) with time zone,
+    buy_remainingm      numeric(38, 2) default 0,
+    buy_volume          numeric(38, 2) default 0,
+    execute_status      varchar(255)
+        constraint trading_task_execute_status_check
+            check ((execute_status)::text = ANY
+                   (ARRAY [('PENDING'::character varying)::text, ('EXECUTING'::character varying)::text, ('TRADED'::character varying)::text, ('FINISH'::character varying)::text, ('TERMINATED'::character varying)::text])),
+    expire_date         timestamp(6) with time zone,
+    last_trading_time   timestamp(6) with time zone,
+    sell_remainingm     numeric(38, 2) default 0,
+    sell_volume         numeric(38, 2) default 0,
+    task_no             varchar(255),
+    traded_volumem      numeric(38, 2) default 0,
+    transferred_volumem numeric(38, 2) default 0,
+    ym                  integer,
+    assigner_id         bigint
+        constraint "FK6tgsm3fr7e4hu4wnmxvsledsk"
+            references general_user,
+    buy_currency_id     bigint
+        constraint "FKo38epdno2dym6hhrdpejxhmld"
+            references currency,
+    instruction_id      bigint
+        constraint "FKif3lu7ynt87np11o9ya5kixvj"
+            references instruction,
+    parent_id           bigint
+        constraint "FKkuxc8rbd9bmem6d20m7n82wb3"
+            references trading_task,
+    sell_currency_id    bigint
+        constraint "FK33och7vqam3vskgdo10dsb0tt"
+            references currency,
+    trader_id           bigint
+        constraint "FKqjew73xnlvyodk8ngoasc9cj2"
+            references general_user
+);
+
+create table trade_inquiry
+(
+    id              bigserial
+        primary key,
+    created_at      timestamp(6) with time zone,
+    created_by      varchar(255),
+    deleted_at      timestamp(6) with time zone,
+    updated_at      timestamp(6) with time zone,
+    updated_by      varchar(255),
+    code            varchar(255),
+    delivery_type   smallint
+        constraint trade_inquiry_delivery_type_check
+            check ((delivery_type >= 0) AND (delivery_type <= 1)),
+    inquiry_status  smallint
+        constraint trade_inquiry_inquiry_status_check
+            check ((inquiry_status >= 0) AND (inquiry_status <= 4)),
+    time_initiated  timestamp(6) with time zone,
+    volume          numeric(38, 2),
+    initiator_id    bigint
+        constraint "FK9ua3t908y13p9ggqvucr53fmm"
+            references general_user,
+    trading_task_id bigint
+        constraint "FKormpuemsothsip6cevwc5b9uv"
+            references trading_task
+);
+
+create table trade_inquiry_quote
+(
+    id               bigserial
+        primary key,
+    created_at       timestamp(6) with time zone,
+    created_by       varchar(255),
+    deleted_at       timestamp(6) with time zone,
+    updated_at       timestamp(6) with time zone,
+    updated_by       varchar(255),
+    price            numeric(38, 2),
+    quote_time       timestamp(6) with time zone,
+    counter_party_id bigint
+        constraint "FKedfkabgiwkdb7iorg38nt3ffm"
+            references bank_branch,
+    trade_inquiry_id bigint
+        constraint "FKphu9m0186j9a8pon29y3lsy5t"
+            references trade_inquiry
+);
+
+create table trade_inquiry_bank_branch
+(
+    trade_inquiry_id      bigint not null
+        constraint "FK1mj5355kwhwur59xgef3ucht2"
+            references trade_inquiry,
+    counter_party_list_id bigint not null
+        constraint "FKk79x17bujx2kq3cwn6w903f7i"
+            references bank_branch
+);
+
+create table trade_open_order
+(
+    id                bigserial
+        primary key,
+    created_at        timestamp(6) with time zone,
+    created_by        varchar(255),
+    deleted_at        timestamp(6) with time zone,
+    updated_at        timestamp(6) with time zone,
+    updated_by        varchar(255),
+    code              varchar(255),
+    delivery_type     smallint
+        constraint trade_open_order_delivery_type_check
+            check ((delivery_type >= 0) AND (delivery_type <= 1)),
+    open_order_status smallint
+        constraint trade_open_order_open_order_status_check
+            check ((open_order_status >= 0) AND (open_order_status <= 3)),
+    time_initiated    timestamp(6) with time zone,
+    volume            numeric(38, 2),
+    initiator_id      bigint
+        constraint "FKqhe25u6cjw3nuitrubc0dh4tu"
+            references general_user,
+    trading_task_id   bigint
+        constraint "FKdn5eaucbrsvpke2wdgf8awwvr"
+            references trading_task
+);
+
+create table trade_open_order_quote
+(
+    id                  bigserial
+        primary key,
+    created_at          timestamp(6) with time zone,
+    created_by          varchar(255),
+    deleted_at          timestamp(6) with time zone,
+    updated_at          timestamp(6) with time zone,
+    updated_by          varchar(255),
+    price               numeric(38, 2),
+    quote_time          timestamp(6) with time zone,
+    counter_party_id    bigint
+        constraint "FKfmeuhfxgmhpkvcpd9bojcaeg5"
+            references bank_branch,
+    trade_open_order_id bigint
+        constraint "FKfj42ofix13gf1odkx2pjdwug8"
+            references trade_open_order
+);
+
+create table trade_open_order_bank_branch
+(
+    trade_open_order_id   bigint not null
+        constraint "FK4vkpkclegkbm7e4977gd0v8dv"
+            references trade_open_order,
+    counter_party_list_id bigint not null
+        constraint "FK98pe71dlnky4l3pqqc5ppq3np"
+            references bank_branch
+);
+
+create table trade_order
+(
+    id                    bigserial
+        primary key,
+    created_at            timestamp(6) with time zone,
+    created_by            varchar(255),
+    deleted_at            timestamp(6) with time zone,
+    updated_at            timestamp(6) with time zone,
+    updated_by            varchar(255),
+    source_id             bigint,
+    source_type           smallint
+        constraint trade_order_source_type_check
+            check ((source_type >= 0) AND (source_type <= 2)),
+    status                smallint
+        constraint trade_order_status_check
+            check ((status >= 0) AND (status <= 3)),
+    counter_party_id      bigint
+        constraint "FKsamy6n85w1kqfhaq0ljfxv4bw"
+            references bank_branch,
+    prev_id               bigint
+        constraint "FK4bjpl057ltf8n9g4bhlajo616"
+            references trade_order,
+    trade_confirmation_id bigint
+        constraint "FKbxkpnkg55brd7uw6nbsn8jgdp"
+            references trade_confirmation,
+    trading_task_id       bigint
+        constraint "FK3psxxq3uumc0wufe2fg2bo0n1"
+            references trading_task
+);
+
+alter table trade_confirmation
+    add constraint "FKqou7v0eyu3nw00wtxtrk8mw8p"
+        foreign key (trade_order_id) references trade_order;
+
+create table trade_delivery_entry
+(
+    id             bigserial
+        primary key,
+    created_at     timestamp(6) with time zone,
+    created_by     varchar(255),
+    deleted_at     timestamp(6) with time zone,
+    updated_at     timestamp(6) with time zone,
+    updated_by     varchar(255),
+    trade_order_id bigint
+        constraint "FKsn1aeh1d176ifg6fgfb6vhv20"
+            references trade_order
+);
+
+create table trade_delivery_entry_virtual
+(
+    id             bigserial
+        primary key,
+    created_at     timestamp(6) with time zone,
+    created_by     varchar(255),
+    deleted_at     timestamp(6) with time zone,
+    updated_at     timestamp(6) with time zone,
+    updated_by     varchar(255),
+    trade_order_id bigint
+        constraint "FKor443qovjq166je2n87llp8pn"
+            references trade_order
+);
+
+create table trade_entry
+(
+    id             bigserial
+        primary key,
+    created_at     timestamp(6) with time zone,
+    created_by     varchar(255),
+    deleted_at     timestamp(6) with time zone,
+    updated_at     timestamp(6) with time zone,
+    updated_by     varchar(255),
+    trade_order_id bigint
+        constraint "FKexdqsw2t5yk5lnf9gyd8rgxgm"
+            references trade_order
+);
+
+create table trade_entry_virtual
+(
+    id             bigserial
+        primary key,
+    created_at     timestamp(6) with time zone,
+    created_by     varchar(255),
+    deleted_at     timestamp(6) with time zone,
+    updated_at     timestamp(6) with time zone,
+    updated_by     varchar(255),
+    trade_order_id bigint
+        constraint "FKhsuwync99qcy1gkx74fggn1ag"
+            references trade_order
+);
+
