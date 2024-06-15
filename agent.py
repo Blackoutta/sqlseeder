@@ -4,7 +4,8 @@ from typing import List
 from langchain_openai import ChatOpenAI
 
 from ddl_loader import load_ddl
-from prompt import get_prompt, OutputParser
+from gen_prompt import get_gen_prompt, GenPromptOutputParser
+from relation_prompt import get_relation_prompt, RelationPromptOutputParser
 
 
 class Agent:
@@ -13,6 +14,7 @@ class Agent:
         self.queue = queue.Queue()
         self.counter = {}  # 表计数
         self.generated = []  # 已生成的SQL
+        self.optimized = []  # 已优化的SQL
         self.gen_history = {}  # 已生成SQL的记录，注入到prompt中让大语言模型尽量避开重复的数据
         self.model = 'glm-4-9b-chat'
         self.llm = ChatOpenAI(model=self.model,
@@ -24,7 +26,7 @@ class Agent:
                               )
         self.threshold = 3
 
-    def generate(self, target_table: str) -> List[str]:
+    def generate(self, target_table: str) -> (List[str], List[str]):
         self.queue.put(target_table)
 
         while not self.queue.empty():
@@ -42,8 +44,8 @@ class Agent:
 
             # 大语言模型生成语句
             # print(f'ddl: {ddl}')
-            chain = (get_prompt() | self.llm | OutputParser())
-            result = chain.invoke({"ddl": ddl, "history": history})
+            gen_chain = (get_gen_prompt() | self.llm | GenPromptOutputParser())
+            result = gen_chain.invoke({"ddl": ddl, "history": history})
             # ctx = result['context']
             # print(f'context: {ctx}')
 
@@ -72,7 +74,13 @@ class Agent:
                 if self.counter[ft] <= self.threshold:
                     print(f'enqueue: {ft}')
                     self.queue.put(ft)
-        return self.generated
+
+            # 优化SQL语句之间的外键关系
+            rel_chain = (get_relation_prompt() | self.llm | RelationPromptOutputParser())
+            result = rel_chain.invoke({"stmts": '\n'.join(self.generated)})
+            self.optimized = result['modified_statements']
+
+        return self.generated, self.optimized
 
     def history_as_prompt(self, target) -> str:
         his = self.gen_history.get(target)
@@ -86,10 +94,13 @@ if __name__ == '__main__':
         d = load_ddl(f.read())
 
     agent = Agent(d)
-    generated = agent.generate('trading_task')
+    generated, optimized = agent.generate('trading_task')
     print('final result:')
-    for s in generated:
-        print(s)
     with open('./generated.txt', 'w') as g:
         for s in generated:
             g.write(s + '\n')
+    with open('./optimized.txt', 'w') as g:
+        for s in optimized:
+            g.write(s + '\n')
+    print()
+    print("ALL DONE!!!")

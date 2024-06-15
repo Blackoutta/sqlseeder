@@ -5,12 +5,12 @@ from langchain_core.output_parsers.base import T
 from langchain_core.prompts import *
 
 
-def get_prompt():
+def get_gen_prompt():
     return ChatPromptTemplate.from_messages([
         SystemMessagePromptTemplate.from_template(
             """
             You are a helpful assistant that creates SQL insert statements based on given table schema.
-            Your SQL dialet is Postgres 13.
+            Your SQL dialect is Postgres 13.
             You only respond with the follow format in triple quote:
             '''
             context:
@@ -79,7 +79,7 @@ def parse_text_to_dict(text):
     return result
 
 
-class OutputParser(BaseOutputParser):
+class GenPromptOutputParser(BaseOutputParser):
     def parse(self, text: str) -> T:
         try:
             return parse_text_to_dict(text)
