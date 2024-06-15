@@ -22,11 +22,11 @@ class Agent:
         self.llm = ChatOpenAI(model=self.model,
                               temperature=0,
                               verbose=True,
-                              max_tokens=8000,
+                              max_tokens=18000,
                               api_key="EMPTY",
                               base_url="http://localhost:8000/v1",
                               )
-        self.threshold = 3
+        self.threshold = 1
 
     def generate(self, target_table: str) -> (List[str], List[str]):
         self.queue.put(target_table)
@@ -73,6 +73,7 @@ class Agent:
                     self.counter[ft] = 1
                 else:
                     self.counter[ft] = self.counter[ft] + 1
+                    
                 if self.counter[ft] <= self.threshold:
                     print(f'enqueue: {ft}')
                     self.queue.put(ft)
@@ -114,7 +115,6 @@ if __name__ == '__main__':
 
     agent = Agent(d)
     generated, optimized = agent.generate('trading_task')
-    print('final result:')
     with open('./generated.sql', 'w') as g:
         for s in generated:
             g.write(s + '\n')

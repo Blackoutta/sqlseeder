@@ -3,7 +3,7 @@ from langchain_openai import ChatOpenAI
 from prompt_relation import get_relation_prompt, RelationPromptOutputParser
 
 generated_text = """
-insert into trading_task (id, created_at, created_by, deleted_at, updated_at, updated_by, assign_time, buy_remainingm, buy_volume, execute_status, expire_date, last_trading_time, sell_remainingm, sell_volume, task_no, traded_volumem, transferred_volumem, ym, assigner_id, buy_currency_id, instruction_id, parent_id, sell_currency_id, trader_id) VALUES (1, '2023-04-01 12:00:00+00', 'user123', NULL, NULL, NULL, '2023-04-02 10:00:00+00', 100.00, 200.00, 'PENDING', '2023-05-01 12:00:00+00', NULL, 150.00, 250.00, 'T123456', 50.00, 30.00, 2023, 101, 201, 301, NULL, 401, 501);
+insert into trading_task (id, created_at, created_by, deleted_at, updated_at, updated_by, assign_time, buy_remainingm, buy_volume, execute_status, expire_date, last_trading_time, sell_remainingm, sell_volume, task_no, traded_volumem, transferred_volumem, ym, assigner_id, buy_currency_id, instruction_id, parent_id, sell_currency_id, trader_id) VALUES (1234, '2023-04-01 12:00:00+00', 'user123', NULL, NULL, NULL, '2023-04-02 12:00:00+00', 100.00, 200.00, 'PENDING', '2023-05-01 12:00:00+00', NULL, 300.00, 400.00, 'T12345', 500.00, 600.00, 2023, 5678, 91011, 121314, 151617, 181920, 212223);
 """
 
 fk_ctx = """

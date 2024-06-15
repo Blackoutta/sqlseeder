@@ -14,9 +14,8 @@ def get_gen_prompt():
             You only respond with the follow format in triple quote:
             '''
             context:
-            - field_name_1: field value generated
-            - field_name_2: field value generated
-            ...
+            - field_name_1: field value 1 generated
+            - field_name_2: field value 2 generated
 
             statement:
             insert into (field_name_1, field_name_2, ...) VALUES (value1, value2,...);
@@ -24,21 +23,21 @@ def get_gen_prompt():
             foreign_tables:
             - foreign_table_1
             - foreign_table_2
-            ...
             '''
             don't make up foreign tables, look for them in ddl where the 'references' key word appear.
+            always end your statement with semi-column ';'
             """
         ),
         HumanMessagePromptTemplate.from_template(
             """
-            Here are some examples of statements you should be generating:
-            {history}
-
             please give me a SQL insert based on this schema:'''{ddl}'''
+            Here are some examples of statements of this table:
+            {history}
             Requirements:
             - all fields in ddl must appear
             - all fields appeared must have a valid value
-            - values should be different from the examples given, especially for fields that are highly distinguishable
+            - values should be different from the examples given, especially for fields that are highly distinguishable, for instance: id
+            - use integer values on 'id' field, starting from 10000
             """
         )
     ])
