@@ -58,11 +58,15 @@ class Agent:
 
             fts = result['foreign_tables']
             for ft in fts:
+                # 跳过自依赖
+                if ft.lower() == target.lower():
+                    continue
                 if ft not in self.counter:
                     self.counter[ft] = 1
                 else:
                     self.counter[ft] = self.counter[ft] + 1
-                if self.counter[ft] <= self.threshold and ft != target:
+                if self.counter[ft] <= self.threshold:
+                    print(f'enqueue: {ft}')
                     self.queue.put(ft)
         return self.generated
 
