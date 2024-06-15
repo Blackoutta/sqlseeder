@@ -4,8 +4,8 @@ from typing import List
 from langchain_openai import ChatOpenAI
 
 from ddl_loader import load_ddl
-from gen_prompt import get_gen_prompt, GenPromptOutputParser
-from relation_prompt import get_relation_prompt, RelationPromptOutputParser
+from prompt_gen import get_gen_prompt, GenPromptOutputParser
+from prompt_relation import get_relation_prompt, RelationPromptOutputParser
 
 
 class Agent:
