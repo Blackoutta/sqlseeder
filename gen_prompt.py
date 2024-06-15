@@ -45,36 +45,33 @@ def get_gen_prompt():
 
 
 def parse_text_to_dict(text):
-    lines = text.strip().split('\n')
-    result = {}
-    current_key = None
+    result = {
+        "available_ids_by_table": {},
+        "foreign_table_mapping": {},
+        "modified_statements": []
+    }
+    
+    available_ids_section = re.search(r'available_ids_by_table:\n((?:\s*-\s*\S+:\s*[\d,]+\n)+)', text)
+    foreign_table_mapping_section = re.search(r'foreign_table_mapping:\n((?:\s*-\s*\S+:\s*\S+\n)+)', text)
+    modified_statements_section = re.search(r'modified_statements:\n((?:\s*-\s*.*\n)+)', text)
+    
+    if available_ids_section:
+        available_ids_lines = available_ids_section.group(1).strip().split('\n')
+        for line in available_ids_lines:
+            table, ids = re.findall(r'(\S+):\s*([\d,]+)', line)[0]
+            result["available_ids_by_table"][table] = list(map(int, ids.split(',')))
 
-    for line in lines:
-        stripped_line = line.strip()
+    if foreign_table_mapping_section:
+        foreign_table_mapping_lines = foreign_table_mapping_section.group(1).strip().split('\n')
+        for line in foreign_table_mapping_lines:
+            field, foreign_table = re.findall(r'(\S+):\s*(\S+)', line)[0]
+            result["foreign_table_mapping"][field] = foreign_table
 
-        if stripped_line.endswith(':'):
-            current_key = stripped_line[:-1]
-            if current_key == 'context':
-                result[current_key] = {}
-            elif current_key == 'foreign_tables':
-                result[current_key] = []
-            else:
-                result[current_key] = ''
-        elif current_key == 'context' and stripped_line.startswith('-'):
-            key_value = stripped_line[2:].split(':', 1)
-            if len(key_value) == 2:
-                key, value = key_value[0].strip(), key_value[1].strip()
-                try:
-                    result[current_key][key] = json.loads(value)
-                except json.JSONDecodeError:
-                    result[current_key][key] = value
-        elif current_key == 'foreign_tables' and stripped_line.startswith('-'):
-            result[current_key].append(stripped_line[2:].strip())
-        elif current_key == 'statement':
-            if result[current_key] == '':
-                result[current_key] = stripped_line
-            else:
-                result[current_key] += ' ' + stripped_line
+    if modified_statements_section:
+        modified_statements_lines = modified_statements_section.group(1).strip().split('\n')
+        for line in modified_statements_lines:
+            statement = re.findall(r'-\s*(.*)', line)[0]
+            result["modified_statements"].append(statement)
 
     return result
 

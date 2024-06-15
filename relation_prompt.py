@@ -1,3 +1,5 @@
+import re
+
 from langchain_core.output_parsers import BaseOutputParser
 from langchain_core.output_parsers.base import T
 from langchain_core.prompts import *
@@ -7,66 +9,86 @@ def get_relation_prompt():
     return ChatPromptTemplate.from_messages([
         SystemMessagePromptTemplate.from_template(
             """
-            You are a helpful assistant that understands foreign key relations between SQL insert statements.
+            You are a helpful assistant that helps correct sql insert statements.
             Your SQL dialect is Postgres 13.
             You only respond with the follow format in triple quote:
             '''
-            available_ids_by_table:
-            - table_name_1: 1,2,3,4,5
-            - table_name_2: 1,2,3,4,5
+            foreign_key_to_foreign_table:
+            - foreign_key_name: foreign_table_name
+            - foreign_key_name: foreign_table_name
+
+            foreign_key_value_to_replace:
+            - from: origin_value_1 (which field?)
+              to: new_value_1 (which foreign table?)
 
             modified_statements:
-            - modified sql insert statement 1
-            - modified sql insert statement 2
+            - modified sql insert statement           
+
+            thoughts:
+            - step 1
+            - step 2
+            - step 3
             '''
             """
         ),
         HumanMessagePromptTemplate.from_template(
             """
-            analyze the foreign key relations between the following statements, 
-            modifying their 'id' field or fields that ends with '_id' suffix(aka foreign keys) 
-            so that when inserting them, they will not 
-            violate foreign key constraints:
-            '''{stmts}'''
+            '''{ddl}'''
+
+            The following target statement has arbitrary values for its foreign key fields:
+            '''{stmt}'''  
+
+            change its foreign key values based on the foreign key context provided below:
+            '''{fk_ctx}'''
+            
+            Requirements:
+            - don't add or remove values, just modify
+            - replace all the foreign key values with existing values in the context only
+            - ignore any field that is named like 'parent_id'
             """
         )
     ])
 
 
 def parse_text_to_dict(text):
-    # 初始化结果字典
     result = {
-        "available_ids_by_table": {},
-        "modified_statements": []
+        "foreign_key_to_foreign_table": {},
+        "modified_statements": [],
+        "thoughts": []
     }
 
-    lines = text.strip().split('\n')
+    # 正则表达式匹配各个部分
+    foreign_key_section = re.search(r'foreign_key_to_foreign_table:\n((?:\s*-\s*\S+:\s*\S+\n)+)', text)
+    modified_statements_section = re.search(r'modified_statements:\n((?:\s*-\s*.*\n)+)', text)
+    thoughts_section = re.search(r'thoughts:\n((?:\s*-\s*.*\n)+)', text)
 
-    current_section = None
+    # 解析 foreign_key_to_foreign_table 部分
+    if foreign_key_section:
+        foreign_key_lines = foreign_key_section.group(1).strip().split('\n')
+        for line in foreign_key_lines:
+            field, foreign_table = re.findall(r'(\S+):\s*(\S+)', line)[0]
+            result["foreign_key_to_foreign_table"][field] = foreign_table
 
-    for line in lines:
-        line = line.strip()
+    # 解析 modified_statements 部分
+    if modified_statements_section:
+        modified_statements_lines = modified_statements_section.group(1).strip().split('\n')
+        for line in modified_statements_lines:
+            statement = re.findall(r'-\s*(.*)', line)[0]
+            result["modified_statements"].append(statement)
 
-        if line.startswith('available_ids_by_table:'):
-            current_section = 'available_ids_by_table'
-        elif line.startswith('modified_statements:'):
-            current_section = 'modified_statements'
-        elif current_section == 'available_ids_by_table':
-            if line.startswith('-'):
-                table_name, ids = line[1:].split(':')
-                table_name = table_name.strip()
-                ids = [int(id.strip()) for id in ids.split(',')]
-                result['available_ids_by_table'][table_name] = ids
-        elif current_section == 'modified_statements':
-            if line.startswith('-'):
-                statement = line[1:].strip()
-                result['modified_statements'].append(statement)
+    # 解析 thoughts 部分
+    if thoughts_section:
+        thoughts_lines = thoughts_section.group(1).strip().split('\n')
+        for line in thoughts_lines:
+            thought = re.findall(r'-\s*(.*)', line)[0]
+            result["thoughts"].append(thought)
 
     return result
 
 
 class RelationPromptOutputParser(BaseOutputParser):
     def parse(self, text: str) -> T:
+        print(text)
         try:
             return parse_text_to_dict(text)
         except Exception as e:
@@ -74,16 +96,21 @@ class RelationPromptOutputParser(BaseOutputParser):
 
 
 if __name__ == '__main__':
+    # 示例文本
     text = """
-    available_ids_by_table:
-    - table_name_1: 1,2,3,4,5
-    - table_name_2: 6,7,8,9,10
+                foreign_key_to_foreign_table:
+                - foreign_key_name_1: foreign_table_name_1
+                - foreign_key_name_2: foreign_table_name_2
 
-    modified_statements:
-    - modified sql insert statement 1
-    - modified sql insert statement 2
+                modified_statements:
+                - modified sql insert statement 1
+
+                thoughts:
+                - step 1
+                - step 2
+                - step 3
     """
 
-    # 解析文本
+    # 调用函数并打印结果
     parsed_dict = parse_text_to_dict(text)
     print(parsed_dict)
