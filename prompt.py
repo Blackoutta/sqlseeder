@@ -1,5 +1,4 @@
 import json
-import re
 
 from langchain_core.output_parsers import BaseOutputParser
 from langchain_core.output_parsers.base import T
@@ -12,17 +11,20 @@ def get_prompt():
             """
             You are a helpful assistant that creates SQL insert statements based on given table schema.
             Your SQL dialet is Postgres 13.
-            You only respond with the follow JSON format in triple quote:
+            You only respond with the follow format in triple quote:
             '''
-            {{
-            "context": {{
-            "field_name_1": "value you've generated for a field",
-            "field_name_2": "value you've generated for a field",
+            context:
+            - field_name_1: field value generated
+            - field_name_2: field value generated
             ...
-            }},
-            "statement": "the complete SQL statement generated based on context object above",
-            "foreign_tables": ["foreign table_1, foreign table_2"]
-            }}
+
+            statement:
+            insert into (field_name_1, field_name_2, ...) VALUES (value1, value2,...);
+
+            foreign_tables:
+            - foreign_table_1
+            - foreign_table_2
+            ...
             '''
             """
         ),
@@ -33,33 +35,73 @@ def get_prompt():
             
             please give me a SQL insert based on this schema:'''{ddl}'''
             Requirements:
-            - all fields in ddl must appeara except for 'id'
-            - all fields appeared must have a valid value paired with it
-            - do not include 'id' field in your statement
+            - all fields in ddl must appear
+            - all fields appeared must have a valid value
             - values should be different from the examples given, especially for fields that are highly distinguishable
-            - don't use NULL(upper cased) in JSON format, use null(lower cased)
-            - for string field in JSON, only use double quote, if there is double quotes inside double quotes, escaple the double quotes inside
             """
         )
     ])
 
 
-def extract_json_from_text(text):
-    # 使用正则表达式匹配JSON部分
-    json_pattern = re.compile(r'\{.*}', re.DOTALL)
-    match = json_pattern.search(text)
-    if match:
-        return match.group()
-    else:
-        return None
+def parse_text_to_dict(text):
+    lines = text.strip().split('\n')
+    result = {}
+    current_key = None
+
+    for line in lines:
+        stripped_line = line.strip()
+
+        if stripped_line.endswith(':'):
+            current_key = stripped_line[:-1]
+            if current_key == 'context':
+                result[current_key] = {}
+            elif current_key == 'foreign_tables':
+                result[current_key] = []
+            else:
+                result[current_key] = ''
+        elif current_key == 'context' and stripped_line.startswith('-'):
+            key_value = stripped_line[2:].split(':', 1)
+            if len(key_value) == 2:
+                key, value = key_value[0].strip(), key_value[1].strip()
+                try:
+                    result[current_key][key] = json.loads(value)
+                except json.JSONDecodeError:
+                    result[current_key][key] = value
+        elif current_key == 'foreign_tables' and stripped_line.startswith('-'):
+            result[current_key].append(stripped_line[2:].strip())
+        elif current_key == 'statement':
+            if result[current_key] == '':
+                result[current_key] = stripped_line
+            else:
+                result[current_key] += ' ' + stripped_line
+
+    return result
 
 
 class OutputParser(BaseOutputParser):
     def parse(self, text: str) -> T:
-        stripped = extract_json_from_text(text).strip("```json").strip("```")
         try:
-            return json.loads(stripped)
+            return parse_text_to_dict(text)
         except Exception as e:
-            print(f'Failed to parse {stripped}: {e}')
-            raise e
+            print(f'Failed to parse text result:\n{text}\n')
 
+
+if __name__ == '__main__':
+    # 示例文本
+    text = """
+    context:
+     - field_name_1: field value generated
+     - field_name_2: field value generated
+     - field_name_3: {"json_field": "json value"}
+
+    statement:
+    insert into (field_name_1, field_name_2) VALUES (value1, value2);
+
+    foreign_tables:
+     - foreign_table_1
+     - foreign_table_2
+    """
+
+    # 调用函数并打印结果
+    parsed_dict = parse_text_to_dict(text)
+    print(parsed_dict)
