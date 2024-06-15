@@ -1,5 +1,3 @@
-import re
-
 from langchain_core.output_parsers import BaseOutputParser
 from langchain_core.output_parsers.base import T
 from langchain_core.prompts import *
@@ -11,12 +9,10 @@ def get_ctx_prompt():
             """
             You are a helpful assistant that understands the foreign key relations between sql insert statements.
             Your SQL dialect is Postgres 13.
-            You only respond with the follow format in triple quote:
-            '''
+            You only respond with the follow format:
             available_ids_by_table:
             - table_name_1: 1,2,3,4,5
             - table_name_2: 1,2,3,4,5
-            '''
             """
         ),
         HumanMessagePromptTemplate.from_template(
@@ -29,25 +25,39 @@ def get_ctx_prompt():
 
 
 def parse_text_to_dict(text):
-    result = {
-        "available_ids_by_table": {}
-    }
+    # 初始化一个空字典
+    result = {}
 
-    # 正则表达式匹配 available_ids_by_table 部分
-    available_ids_section = re.search(r'available_ids_by_table:\n((?:\s*-\s*\S+:\s*[\d,]+\n)+)', text)
+    # 分割文本为行
+    lines = text.strip().split('\n')
 
-    # 解析 available_ids_by_table 部分
-    if available_ids_section:
-        available_ids_lines = available_ids_section.group(1).strip().split('\n')
-        for line in available_ids_lines:
-            table, ids = re.findall(r'(\S+):\s*([\d,]+)', line)[0]
-            result["available_ids_by_table"][table] = list(map(int, ids.split(',')))
+    for line in lines:
+        # 去掉行首的短横线和空格，分割表名和ID
+        line = line.strip('- ').strip()
+        if line:
+            # 处理表名和ID部分
+            if ': ' in line:
+                table_name, ids = line.split(': ', 1)  # 仅分割一次，避免额外的冒号导致问题
+                ids_list = [int(id.strip()) for id in ids.split(',')]
+
+                # 如果表名已经存在，合并ID列表
+                if table_name in result:
+                    result[table_name].extend(ids_list)
+                else:
+                    result[table_name] = ids_list
+            else:
+                print(f"Skipping malformed line: {line}")
+
+    # 删除ID列表中的重复项
+    for key in result:
+        result[key] = list(set(result[key]))
 
     return result
 
 
 class CtxPromptOutputParser(BaseOutputParser):
     def parse(self, text: str) -> T:
+        print(text)
         try:
             return parse_text_to_dict(text)
         except Exception as e:
@@ -55,11 +65,24 @@ class CtxPromptOutputParser(BaseOutputParser):
 
 
 if __name__ == '__main__':
+    # 示例文本
     text = """
-            available_ids_by_table:
-            - table_name_1: 1,2,3,4,5
-            - table_name_2: 1,2,3,4,5
-"""
+    available_ids_by_table:
+    - trading_task: 1
+    - general_user: 1234567890, 1234567891
+    - currency: 1, 2
+    - instruction: 1
+    - hedge_plan_entry: 1
+    - company: 1, 2, 1
+    - company_currency: 1001, 1002
+    - currency: 1
+    - hedge_group: 1
+    - hedge_plan: 1
+    - company_base: 1, 2, 3
+    - company: 1, 2, 1
+    - company_currency: 1002
+    - company_base: 2, 3
+    """
 
     # 调用函数并打印结果
     parsed_dict = parse_text_to_dict(text)
