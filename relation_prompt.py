@@ -12,14 +12,12 @@ def get_relation_prompt():
             You only respond with the follow format in triple quote:
             '''
             available_ids_by_table:
-            - table_name_1: 1,2,3,4,5...
-            - table_name_2: 1,2,3,4,5...
-            ...
+            - table_name_1: 1,2,3,4,5
+            - table_name_2: 1,2,3,4,5
 
             modified_statements:
             - modified sql insert statement 1
             - modified sql insert statement 2
-            ...
             '''
             """
         ),
