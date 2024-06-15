@@ -115,10 +115,10 @@ if __name__ == '__main__':
     agent = Agent(d)
     generated, optimized = agent.generate('trading_task')
     print('final result:')
-    with open('./generated.txt', 'w') as g:
+    with open('./generated.sql', 'w') as g:
         for s in generated:
             g.write(s + '\n')
-    with open('./optimized.txt', 'w') as g:
+    with open('./optimized.sql', 'w') as g:
         for s in optimized:
             g.write(s + '\n')
     print()
