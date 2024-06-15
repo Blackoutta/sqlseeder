@@ -77,21 +77,21 @@ class Agent:
                     print(f'enqueue: {ft}')
                     self.queue.put(ft)
 
-            # 从已生成的数据中获取各个表的外键id
-            ctx_chain = (get_ctx_prompt() | self.llm | CtxPromptOutputParser())
-            fk_ctx = ctx_chain.invoke({"stmts": '\n'.join(self.generated)})
+        # 从已生成的数据中获取各个表的外键id
+        ctx_chain = (get_ctx_prompt() | self.llm | CtxPromptOutputParser())
+        fk_ctx = ctx_chain.invoke({"stmts": '\n'.join(self.generated)})
 
-            for stmt in self.generated:
-                # 优化SQL语句之间的外键关系
-                rel_chain = (get_relation_prompt() | self.llm | RelationPromptOutputParser())
-                result = rel_chain.invoke(
-                    {
-                        "ddl": self.ddl_dict.get(self.extract_table_name(stmt)),
-                        "stmt": stmt,
-                        "fk_ctx": fk_ctx
-                    }
-                )
-                self.optimized.append(result['modified_statements'][0])
+        for stmt in self.generated:
+            # 优化SQL语句之间的外键关系
+            rel_chain = (get_relation_prompt() | self.llm | RelationPromptOutputParser())
+            result = rel_chain.invoke(
+                {
+                    "ddl": self.ddl_dict.get(self.extract_table_name(stmt)),
+                    "stmt": stmt,
+                    "fk_ctx": fk_ctx
+                }
+            )
+            self.optimized.append(result['modified_statements'][0])
         return self.generated, self.optimized
 
     def history_as_prompt(self, target) -> str:
