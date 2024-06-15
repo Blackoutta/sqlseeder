@@ -30,12 +30,15 @@ class Agent:
         while not self.queue.empty():
             print(f'current queue size: {self.queue.qsize()}')
             target = self.queue.get()
+            print(f'generating for target: {target}')
             # 获取目标表DLL
             ddl = self.ddl_dict.get(target)
+            if ddl is None:
+                continue
 
             # 获取目标表已生成的语句
             history = self.history_as_prompt(target)
-            print(f'history: {history}')
+            # print(f'history: {history}')
 
             # 大语言模型生成语句
             # print(f'ddl: {ddl}')
@@ -57,6 +60,7 @@ class Agent:
                 self.gen_history[target] = [stmt]
 
             fts = result['foreign_tables']
+            print(f'foreign tables: {fts}')
             for ft in fts:
                 # 跳过自依赖
                 if ft.lower() == target.lower():

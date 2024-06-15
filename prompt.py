@@ -26,6 +26,7 @@ def get_prompt():
             - foreign_table_2
             ...
             '''
+            don't make up foreign tables, look for them in ddl where the 'references' key word appear.
             """
         ),
         HumanMessagePromptTemplate.from_template(
