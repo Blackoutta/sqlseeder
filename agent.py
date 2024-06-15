@@ -1,9 +1,11 @@
 import queue
+import re
 from typing import List
 
 from langchain_openai import ChatOpenAI
 
 from ddl_loader import load_ddl
+from prompt_ctx import get_ctx_prompt, CtxPromptOutputParser
 from prompt_gen import get_gen_prompt, GenPromptOutputParser
 from prompt_relation import get_relation_prompt, RelationPromptOutputParser
 
@@ -75,11 +77,21 @@ class Agent:
                     print(f'enqueue: {ft}')
                     self.queue.put(ft)
 
-            # 优化SQL语句之间的外键关系
-            rel_chain = (get_relation_prompt() | self.llm | RelationPromptOutputParser())
-            result = rel_chain.invoke({"stmts": '\n'.join(self.generated)})
-            self.optimized = result['modified_statements']
+            # 从已生成的数据中获取各个表的外键id
+            ctx_chain = (get_ctx_prompt() | self.llm | CtxPromptOutputParser())
+            fk_ctx = ctx_chain.invoke({"stmts": '\n'.join(self.generated)})
 
+            for stmt in self.generated:
+                # 优化SQL语句之间的外键关系
+                rel_chain = (get_relation_prompt() | self.llm | RelationPromptOutputParser())
+                result = rel_chain.invoke(
+                    {
+                        "ddl": self.ddl_dict.get(self.extract_table_name(stmt)),
+                        "stmt": stmt,
+                        "fk_ctx": fk_ctx
+                    }
+                )
+                self.optimized.append(result['modified_statements'][0])
         return self.generated, self.optimized
 
     def history_as_prompt(self, target) -> str:
@@ -87,6 +99,13 @@ class Agent:
         if his is None:
             return ""
         return '\n'.join(his)
+
+    def extract_table_name(self, s):
+        # 使用正则表达式匹配表名
+        match = re.search(r'insert\s+into\s+(\w+)', s, re.IGNORECASE)
+        if match:
+            return match.group(1)
+        return None
 
 
 if __name__ == '__main__':

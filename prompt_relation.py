@@ -88,7 +88,7 @@ def parse_text_to_dict(text):
 
 class RelationPromptOutputParser(BaseOutputParser):
     def parse(self, text: str) -> T:
-        print(text)
+        print(f'parsing relation:\n{text}')
         try:
             return parse_text_to_dict(text)
         except Exception as e:
