@@ -68,7 +68,9 @@ def parse_text_to_dict(text):
                 except json.JSONDecodeError:
                     result[current_key][key] = value
         elif current_key == 'foreign_tables' and stripped_line.startswith('-'):
-            result[current_key].append(stripped_line[2:].strip())
+            ft = stripped_line[2:].strip()
+            if ft != '':
+                result[current_key].append(ft)
         elif current_key == 'statement':
             if result[current_key] == '':
                 result[current_key] = stripped_line
