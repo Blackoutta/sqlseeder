@@ -9,6 +9,7 @@ class DbTool:
         self.connection_params = connection_params
 
     def execute_sql_insert(self, sql_string):
+        print(f'executing insert stmt:{sql_string}')
         connection = None
         cursor = None
         try:
@@ -23,6 +24,7 @@ class DbTool:
             connection.commit()
 
             # 返回None表示没有错误
+            print('insert success')
             return None
 
         except Error as e:

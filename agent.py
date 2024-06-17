@@ -1,7 +1,6 @@
 import queue
 import re
 import uuid
-from collections import deque
 
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
@@ -12,6 +11,7 @@ from db_tool import DbTool
 from ddl_loader import load_ddl
 from prompt_gen import get_gen_prompt, GenPromptOutputParser
 from prompt_revise import get_revise_prompt, RevisePromptOutputParser, get_revise_request_prompt
+from tree_walker import build_dependency_tree, bfs_dependency_tree
 
 
 class Agent:
@@ -20,7 +20,7 @@ class Agent:
         self.queue = queue.Queue()
         self.counter = {}  # 表计数
         self.generated = {}  # 已生成的SQL
-        self.optimized = {}  # 已优化的SQL
+        self.optimized = []  # 已优化的SQL
         self.gen_history = {}  # 已生成SQL的记录，注入到prompt中让大语言模型尽量避开重复的数据
         self.model = 'glm-4-9b-chat'
         self.llm = ChatOpenAI(model=self.model,
@@ -43,48 +43,47 @@ class Agent:
         :param err:  具体问题
         :return: 错误信息, 为None表示没有错误
         """
-        try:
-            chain = (get_revise_prompt() | self.llm | RevisePromptOutputParser())
-            with_message_history = RunnableWithMessageHistory(
-                chain,
-                self.get_session_history,
-                input_messages_key="input",
-                history_messages_key="history",
-                output_messages_key='output'
-            )
-            session_id = uuid.uuid4()
+        session_id = str(uuid.uuid4())
+        chain = (get_revise_prompt() | self.llm | RevisePromptOutputParser())
+        with_message_history = RunnableWithMessageHistory(
+            chain,
+            self.get_session_history,
+            input_messages_key="input",
+            history_messages_key="history",
+            output_messages_key='output'
+        )
+        result = with_message_history.invoke(
+            input={"input": get_revise_request_prompt().format(stmt=stmt, err=err)},
+            config={"configurable": {"session_id": session_id}},
+        )
+
+        next_step = result['parsed']
+        next_tool = next_step['tool_name']
+
+        tools = {
+            'get_next_valid_id': self.db_tool.execute_sql_query,
+            'get_existing_data_in_table': self.db_tool.execute_sql_query,
+            'insert_to_db': self.db_tool.execute_sql_insert,
+            'check_ddl': self.ddl_dict.get,
+        }
+
+        for i in range(self.loop_cnt):
+            if next_tool == 'finish':
+                print('revise finished!')
+                return None
+            func = tools.get(next_tool)
+            if func is None:
+                raise ValueError(f"invalid next tool: {next_tool}")
+            tool_param = next_step['tool_input']
+            exec_result = func(tool_param)
+            print(f'tool call result: {exec_result}')
             result = with_message_history.invoke(
-                input={"input": get_revise_request_prompt().format(stmt=stmt, err=err)},
+                input={"input": f"tool call: {next_tool} returned: {exec_result}"},
                 config={"configurable": {"session_id": session_id}},
             )
-
-            print(result)
             next_step = result['parsed']
             next_tool = next_step['tool_name']
-
-            tools = {
-                'query_db': self.db_tool.execute_sql_query,
-                'insert_to_db': self.db_tool.execute_sql_insert,
-                'check_ddl': self.ddl_dict.get,
-            }
-
-            for i in range(self.loop_cnt):
-                if next_tool == 'finish':
-                    print('finish!')
-                    return None
-                func = tools[next_tool]
-                tool_param = next_step['tool_input']
-                exec_result = func(tool_param)
-                print(f'tool call result: {exec_result}')
-                result = with_message_history.invoke(
-                    input={"input": f"tool call: {next_tool} returned: {exec_result}"},
-                    config={"configurable": {"session_id": session_id}},
-                )
-                next_step = result['parsed']
-                next_tool = next_step['tool_name']
-            return f"problem not solved after {self.loop_cnt} loops, cancel operation"
-        except Exception as e:
-            return str(e)
+        return f"problem not solved after {self.loop_cnt} loops, cancel operation"
 
     def get_session_history(self, session_id: str) -> BaseChatMessageHistory:
         if session_id not in self.store:
@@ -94,6 +93,7 @@ class Agent:
     def save(self):
         for data in self.optimized:
             stmts = data['stmts']
+            # table_ctx = self.ddl_dict.get(data['table'])
             for stmt in stmts:
                 insert_err = self.db_tool.execute_sql_insert(stmt)
                 if insert_err is None:
@@ -156,8 +156,8 @@ class Agent:
                 if self.counter[ft] <= self.threshold:
                     print(f'enqueue: {ft}')
                     self.queue.put(ft)
-        tree = self.build_dependency_tree(self.generated, target_table)
-        self.optimized = self.bfs_dependency_tree(tree)
+        tree = build_dependency_tree(self.generated, target_table)
+        self.optimized = bfs_dependency_tree(tree)
         print('All statements generated!')
 
     def history_as_prompt(self, target) -> str:
@@ -172,55 +172,6 @@ class Agent:
         if match:
             return match.group(1)
         return None
-
-    def build_dependency_tree(self, data, start_table):
-        # 定义一个内部函数来递归构建依赖树
-        def recurse(table):
-            # 获取当前表的数据
-            table_data = data.get(table)
-            if not table_data:
-                return None
-
-            # 构建当前表的依赖节点
-            node = {
-                'table': table,
-                'stmts': table_data['stmts'],  # SQL插入语句
-                'dependencies': []  # 子依赖
-            }
-
-            # 递归处理当前表的外键表
-            for foreign_table in table_data['foreign_tables']:
-                child_node = recurse(foreign_table)
-                if child_node:
-                    node['dependencies'].append(child_node)
-
-            return node
-
-        # 从起始表名开始递归构建依赖树
-        return recurse(start_table)
-
-    def bfs_dependency_tree(self, dependency_tree):
-        # 如果树为空，直接返回空列表
-        if not dependency_tree:
-            return []
-
-        # 初始化队列，将根节点加入队列
-        queue = deque([dependency_tree])
-        # 存储遍历顺序的表名列表
-        table_list = []
-
-        # 当队列不为空时，进行广度优先遍历
-        while queue:
-            # 从队列中取出一个节点
-            current_node = queue.popleft()
-            # 将当前节点的表名添加到列表中
-            table_list.append(current_node)
-            # 将当前节点的所有子节点加入队列
-            for child in current_node['dependencies']:
-                queue.append(child)
-
-        table_list.reverse()
-        return table_list
 
 
 if __name__ == '__main__':
@@ -237,6 +188,7 @@ if __name__ == '__main__':
 
     agent = Agent(ddl_dict=d, db_conn_param=db_conn_param, loop_cnt=25)
     agent.generate('trading_task')
-    agent.save()
+
+    # agent.save()
 
     print("ALL DONE!!!")

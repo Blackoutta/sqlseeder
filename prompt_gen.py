@@ -11,33 +11,43 @@ def get_gen_prompt():
             """
             You are a helpful assistant that creates SQL insert statements based on given table schema.
             Your SQL dialect is Postgres 13.
-            You only respond with the follow format in triple quote:
-            '''
+            
+            Rules:
+            - don't make up foreign tables, look for them in ddl where the 'references' key word appear.
+            - always end your statement with semi-column ';'.
+            - generate integer 1 for all foreign keys.
+            
+            You only respond with the follow format, do not output anything else:
+            ```
             context:
             - field_name_1: field value 1 generated
             - field_name_2: field value 2 generated
-
+            
             statement:
             insert into (field_name_1, field_name_2, ...) VALUES (value1, value2,...);
 
             foreign_tables:
             - foreign_table_1
             - foreign_table_2
-            '''
-            don't make up foreign tables, look for them in ddl where the 'references' key word appear.
-            always end your statement with semi-column ';'
+            ```
+
             """
         ),
         HumanMessagePromptTemplate.from_template(
             """
-            please give me a SQL insert based on this schema:'''{ddl}'''
-            Here are some examples of statements of this table:
+            please generate a SQL insert based on this schema:
+            ```sql
+            {ddl}
+            ```
+            examples:
             {history}
+            
             Requirements:
             - all fields in ddl must appear
-            - all fields appeared must have a valid value
-            - values should be different from the examples given, especially for fields that are highly distinguishable, for instance: id
-            - use integer values on 'id' field, starting from 10000
+            - 'id' field must appear
+            - ignore all jsonb fields
+            - all fields appeared must have a valid value.
+            - values should be different from the examples given, especially for fields that are highly distinguishable.
             """
         )
     ])
