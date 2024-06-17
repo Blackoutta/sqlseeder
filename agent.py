@@ -92,6 +92,8 @@ class Agent:
 
     def save(self):
         for data in self.optimized:
+            if data is not None:
+                continue
             stmts = data['stmts']
             for stmt in stmts:
                 if stmt is None:
