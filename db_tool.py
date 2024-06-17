@@ -1,3 +1,5 @@
+from typing import TypedDict
+
 import psycopg2
 from psycopg2 import Error
 
@@ -59,6 +61,19 @@ class DbTool:
             if connection:
                 cursor.close()
                 connection.close()
+
+
+class BaseTool(TypedDict, total=False):
+    query_db: str
+    insert_to_db: str
+    check_ddl: str
+
+
+def get_tool_keys():
+    return ['query_db', 'insert_to_db', 'check_ddl']
+
+
+DBAgentTool = TypedDict('DBAgentTool', {key: str for key in get_tool_keys()})
 
 if __name__ == '__main__':
     db_tool = DbTool(connection_params={

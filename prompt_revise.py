@@ -60,6 +60,16 @@ def get_revise_prompt():
     ])
 
 
+def get_revise_request_prompt():
+    return ChatPromptTemplate.from_template("""
+            inserting the following statement: '''{stmt}''' has met an error '''{err}'''
+            your goal is to utilize your tools only to solve the error and eventually insert the statement with success.
+            if the problem is solved, make sure to use the 'finish' tool.
+            tips:
+            - if the error is foreign key constraint related, you can try insert a new data into that foreign table, be sure to look up the ddl of the foreign table before inserting, this way your data will look more realistic
+            """)
+
+
 def extract_tool_call(text):
     # 使用正则表达式匹配 tool_call 部分
     pattern = r'tool_call:\s*\n\s*tool_name:\s*(\w+)\s*\n\s*tool_input:\s*(.+?)\s*(?=\n\S|$)'

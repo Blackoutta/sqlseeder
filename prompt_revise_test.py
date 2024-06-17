@@ -74,19 +74,19 @@ result = with_message_history.invoke(
 )
 
 print(result)
-parsed = result['parsed']
-tool_name = parsed['tool_name']
+next_step = result['parsed']
+next_tool = next_step['tool_name']
 for i in range(25):
-    if tool_name == 'finish':
+    if next_tool == 'finish':
         print('finish!')
         break
-    func = tools[tool_name]
-    tool_param = parsed['tool_input']
+    func = tools[next_tool]
+    tool_param = next_step['tool_input']
     exec_result = func(tool_param)
     print(f'tool call result: {exec_result}')
     result = with_message_history.invoke(
-        input={"input": f"tool call: {tool_name} returned: {exec_result}"},
+        input={"input": f"tool call: {next_tool} returned: {exec_result}"},
         config={"configurable": {"session_id": "abc123"}},
     )
-    parsed = result['parsed']
-    tool_name = parsed['tool_name']
+    next_step = result['parsed']
+    next_tool = next_step['tool_name']

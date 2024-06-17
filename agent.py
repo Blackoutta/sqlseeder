@@ -1,16 +1,21 @@
 import queue
 import re
+import uuid
 from collections import deque
 
+from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain_core.chat_history import BaseChatMessageHistory
+from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_openai import ChatOpenAI
 
 from db_tool import DbTool
 from ddl_loader import load_ddl
 from prompt_gen import get_gen_prompt, GenPromptOutputParser
+from prompt_revise import get_revise_prompt, RevisePromptOutputParser, get_revise_request_prompt
 
 
 class Agent:
-    def __init__(self, ddl_dict: dict, db_conn_param: dict):
+    def __init__(self, ddl_dict: dict, db_conn_param: dict, loop_cnt: int):
         self.ddl_dict = ddl_dict  # ddl
         self.queue = queue.Queue()
         self.counter = {}  # 表计数
@@ -27,9 +32,64 @@ class Agent:
                               )
         self.threshold = 1
         self.db_tool = DbTool(db_conn_param)
+        self.store = {}
+        self.loop_cnt = loop_cnt
 
-    def revise_loop(self, stmt):
-        pass
+    def revise_loop(self, stmt, err):
+        """
+        将问题语句和错误输入给大模型, 让它以reAct的自循环形式来尝试修复问题, 并最终将数据成功插入到数据库
+
+        :param stmt: 有问题的插入语句
+        :param err:  具体问题
+        :return: 错误信息, 为None表示没有错误
+        """
+        try:
+            chain = (get_revise_prompt() | self.llm | RevisePromptOutputParser())
+            with_message_history = RunnableWithMessageHistory(
+                chain,
+                self.get_session_history,
+                input_messages_key="input",
+                history_messages_key="history",
+                output_messages_key='output'
+            )
+            session_id = uuid.uuid4()
+            result = with_message_history.invoke(
+                input={"input": get_revise_request_prompt().format(stmt=stmt, err=err)},
+                config={"configurable": {"session_id": session_id}},
+            )
+
+            print(result)
+            next_step = result['parsed']
+            next_tool = next_step['tool_name']
+
+            tools = {
+                'query_db': self.db_tool.execute_sql_query,
+                'insert_to_db': self.db_tool.execute_sql_insert,
+                'check_ddl': self.ddl_dict.get,
+            }
+
+            for i in range(self.loop_cnt):
+                if next_tool == 'finish':
+                    print('finish!')
+                    return None
+                func = tools[next_tool]
+                tool_param = next_step['tool_input']
+                exec_result = func(tool_param)
+                print(f'tool call result: {exec_result}')
+                result = with_message_history.invoke(
+                    input={"input": f"tool call: {next_tool} returned: {exec_result}"},
+                    config={"configurable": {"session_id": session_id}},
+                )
+                next_step = result['parsed']
+                next_tool = next_step['tool_name']
+            return f"problem not solved after {self.loop_cnt} loops, cancel operation"
+        except Exception as e:
+            return str(e)
+
+    def get_session_history(self, session_id: str) -> BaseChatMessageHistory:
+        if session_id not in self.store:
+            self.store[session_id] = ChatMessageHistory()
+        return self.store[session_id]
 
     def save(self):
         for data in self.optimized:
@@ -40,9 +100,10 @@ class Agent:
                     continue
                 # 进入修正循环
                 print(insert_err)
-                revise_err = self.revise_loop(stmt)
+                revise_err = self.revise_loop(stmt, insert_err)
                 if revise_err is not None:
                     raise ValueError(revise_err)
+        print("All statements inserted!")
 
     def generate(self, target_table: str):
         self.queue.put(target_table)
@@ -97,6 +158,7 @@ class Agent:
                     self.queue.put(ft)
         tree = self.build_dependency_tree(self.generated, target_table)
         self.optimized = self.bfs_dependency_tree(tree)
+        print('All statements generated!')
 
     def history_as_prompt(self, target) -> str:
         his = self.gen_history.get(target)
@@ -161,7 +223,6 @@ class Agent:
         return table_list
 
 
-
 if __name__ == '__main__':
     with open('./ddl.txt', 'r') as f:
         d = load_ddl(f.read())
@@ -174,8 +235,8 @@ if __name__ == '__main__':
         'port': '5432'
     }
 
-    agent = Agent(d, db_conn_param)
-    agent.generate('company_currency')
+    agent = Agent(ddl_dict=d, db_conn_param=db_conn_param, loop_cnt=25)
+    agent.generate('trading_task')
     agent.save()
 
     print("ALL DONE!!!")
