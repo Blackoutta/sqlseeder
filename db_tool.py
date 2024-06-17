@@ -64,6 +64,11 @@ class DbTool:
                 cursor.close()
                 connection.close()
 
+    def get_data_example_by_table(self, table_name):
+        return self.execute_sql_query("""
+        SELECT * FROM {}
+        """.format(table_name))
+
 
 class BaseTool(TypedDict, total=False):
     query_db: str

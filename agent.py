@@ -11,7 +11,7 @@ from db_tool import DbTool
 from ddl_loader import load_ddl
 from prompt_gen import get_gen_prompt, GenPromptOutputParser
 from prompt_revise import get_revise_prompt, RevisePromptOutputParser, get_revise_request_prompt
-from tree_walker import build_dependency_tree, bfs_dependency_tree
+from tree_walker import build_tree, traverse_and_collect_names
 
 
 class Agent:
@@ -62,9 +62,9 @@ class Agent:
 
         tools = {
             'get_next_valid_id': self.db_tool.execute_sql_query,
-            'get_existing_data_in_table': self.db_tool.execute_sql_query,
+            'get_data_example_by_table': self.db_tool.get_data_example_by_table,
             'insert_to_db': self.db_tool.execute_sql_insert,
-            'check_ddl': self.ddl_dict.get,
+            'check_table_ddl': self.ddl_dict.get,
         }
 
         for i in range(self.loop_cnt):
@@ -93,8 +93,9 @@ class Agent:
     def save(self):
         for data in self.optimized:
             stmts = data['stmts']
-            # table_ctx = self.ddl_dict.get(data['table'])
             for stmt in stmts:
+                if stmt is None:
+                    continue
                 insert_err = self.db_tool.execute_sql_insert(stmt)
                 if insert_err is None:
                     continue
@@ -156,8 +157,10 @@ class Agent:
                 if self.counter[ft] <= self.threshold:
                     print(f'enqueue: {ft}')
                     self.queue.put(ft)
-        tree = build_dependency_tree(self.generated, target_table)
-        self.optimized = bfs_dependency_tree(tree)
+        root = build_tree(self.generated)
+        tables_in_order = traverse_and_collect_names(root)
+        for table in tables_in_order:
+            self.optimized.append(self.generated.get(table))
         print('All statements generated!')
 
     def history_as_prompt(self, target) -> str:

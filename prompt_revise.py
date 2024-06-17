@@ -20,13 +20,13 @@ def get_revise_prompt():
             # Tooling
             You have the following tools to use:
             - tool_name: get_next_valid_id
-              tool_input: str(only a SQL query targeting a specific table to find the next valid id to use)
-            - tool_name: get_existing_data_in_table
-              tool_input: str(only a SQL query targeting a specific table to find the existing data in table)
+              tool_input: only a SQL query targeting a specific table to find the next valid id to use, example: SELECT nextval('table_name_id_seq')
+            - tool_name: get_data_example_by_table
+              tool_input: a string representing table name
             - tool_name: insert_to_db 
               tool_input: str(a SQL insert statement)
-            - tool_name: check_ddl
-              tool_input: only a string representing table name
+            - tool_name: check_table_ddl
+              tool_input: str(a table name)
             - tool_name: finish
               tool_input: None
               
@@ -80,8 +80,15 @@ def get_revise_request_prompt():
             if the problem is solved, make sure to use the 'finish' tool.
             try different solution if previous attempts didn't success.
             you are free to manipulate statements for tool input.
-            only use SELECT, UPDATE operations with tools, do not modify the table schema.
+            only use SELECT, UPDATE operations with tools, do not modify table schemas or create new tables.
             try change duplicated key to other values.
+            Requirements for generating statements:
+            - all fields in ddl must appear
+            - 'id' field must appear
+            - ignore all jsonb fields
+            - all fields appeared must have a valid value.
+            - values should be different from the examples given, especially for fields that are highly distinguishable.
+
             """)
 
 
