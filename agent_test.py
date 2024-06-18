@@ -1,7 +1,7 @@
 from agent import Agent
 from ddl_loader import load_ddl_postgres_13
 
-with open('test_data/ddl.txt', 'r') as f:
+with open('test_data/hedge.txt', 'r') as f:
     d = load_ddl_postgres_13(f.read())
 
 db_conn_param = {

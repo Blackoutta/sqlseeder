@@ -73,6 +73,10 @@ if __name__ == '__main__':
                   max_tokens=args.max_tokens,
                   )
 
+    if len(d) == 0:
+        print("No tables found in the DDL file.")
+        exit(1)
+
     while True:
         selected = print_and_select_table(d)
         print(f"You selected: {selected}")

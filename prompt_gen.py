@@ -42,8 +42,8 @@ def get_gen_prompt():
             - 'id' field must appear and should be different from the ids in examples given.
             - ignore all jsonb fields
             - foreign keys cannot be null
-            - values should be different from the examples given, especially for fields that are highly distinguishable.
-            - generated data should look as realistic as possible
+            - values should be vary from the examples given and be realistic
+            - values should follow their field constraints in ddl
             
             ddl:
             ```sql

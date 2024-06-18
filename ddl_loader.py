@@ -44,6 +44,6 @@ def load_ddl_postgres_13(sql_ddl):
 
 
 if __name__ == '__main__':
-    with open('test_data/ddl.txt') as f:
+    with open('test_data/hedge.txt') as f:
         m = load_ddl_postgres_13(f.read())
     print(m['account'])

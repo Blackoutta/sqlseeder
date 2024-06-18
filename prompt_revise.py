@@ -30,8 +30,6 @@ def get_revise_prompt():
               tool_input: only a table name
             - tool_name: finish
               tool_input: None
-            - tool_name: tool_reminder
-            - tool_input: None
               
             tool tips:
             - if no tools can be used, be sure to use the 'finish' tool.
@@ -51,13 +49,16 @@ def get_revise_prompt():
             - your thought 2
             - your thought 3
             
-            reasoning: describe the reasoning
+            # must output
+            reasoning: describe the details for your thoughts
             
-            criticism: criticise your thoughts
+            # must output
+            criticism: what have you done wrong?
             
+            # must output
             next_thing_to_do: manipulate statement or use tool?
             
-            # must output tool call section
+            # must output with the exact format
             tool_call:
               tool_name: tool name
               tool_input: tool input

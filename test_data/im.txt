@@ -1,0 +1,268 @@
+create table users
+(
+    user_id       serial
+        primary key,
+    username      varchar(50)  not null
+        unique,
+    email         varchar(100) not null
+        unique,
+    password_hash varchar(255) not null,
+    created_at    timestamp default CURRENT_TIMESTAMP,
+    updated_at    timestamp default CURRENT_TIMESTAMP
+);
+
+comment on table users is '用户信息表';
+
+comment on column users.user_id is '用户的唯一ID';
+
+comment on column users.username is '用户的唯一用户名';
+
+comment on column users.email is '用户的电子邮件地址';
+
+comment on column users.password_hash is '用户密码的哈希值';
+
+comment on column users.created_at is '用户的创建时间';
+
+comment on column users.updated_at is '用户的最后更新时间';
+
+create table user_settings
+(
+    setting_id    serial
+        primary key,
+    user_id       integer not null
+        references users,
+    theme         varchar(20) default 'light'::character varying,
+    language      varchar(20) default 'en'::character varying,
+    notifications boolean     default true,
+    created_at    timestamp   default CURRENT_TIMESTAMP,
+    updated_at    timestamp   default CURRENT_TIMESTAMP
+);
+
+comment on table user_settings is '用户设置表';
+
+comment on column user_settings.setting_id is '设置的唯一ID';
+
+comment on column user_settings.user_id is '关联的用户ID';
+
+comment on column user_settings.theme is '用户界面主题';
+
+comment on column user_settings.language is '用户界面语言';
+
+comment on column user_settings.notifications is '是否接收通知';
+
+comment on column user_settings.created_at is '设置的创建时间';
+
+comment on column user_settings.updated_at is '设置的最后更新时间';
+
+create table contacts
+(
+    contact_id      serial
+        primary key,
+    user_id         integer not null
+        references users,
+    contact_user_id integer not null
+        references users,
+    created_at      timestamp   default CURRENT_TIMESTAMP,
+    status          varchar(20) default 'pending'::character varying
+);
+
+comment on table contacts is '联系人表';
+
+comment on column contacts.contact_id is '联系人的唯一ID';
+
+comment on column contacts.user_id is '用户ID';
+
+comment on column contacts.contact_user_id is '联系人的用户ID';
+
+comment on column contacts.created_at is '联系人添加时间';
+
+comment on column contacts.status is '联系人状态（pending, accepted, blocked）';
+
+create table groups
+(
+    group_id   serial
+        primary key,
+    group_name varchar(100) not null,
+    owner_id   integer      not null
+        references users,
+    created_at timestamp default CURRENT_TIMESTAMP,
+    updated_at timestamp default CURRENT_TIMESTAMP
+);
+
+comment on table groups is '群组信息表';
+
+comment on column groups.group_id is '群组的唯一ID';
+
+comment on column groups.group_name is '群组名称';
+
+comment on column groups.owner_id is '群主用户ID';
+
+comment on column groups.created_at is '群组创建时间';
+
+comment on column groups.updated_at is '群组最后更新时间';
+
+create table group_members
+(
+    member_id serial
+        primary key,
+    group_id  integer not null
+        references groups,
+    user_id   integer not null
+        references users,
+    joined_at timestamp   default CURRENT_TIMESTAMP,
+    role      varchar(20) default 'member'::character varying
+);
+
+comment on table group_members is '群组成员表';
+
+comment on column group_members.member_id is '群组成员的唯一ID';
+
+comment on column group_members.group_id is '群组ID';
+
+comment on column group_members.user_id is '用户ID';
+
+comment on column group_members.joined_at is '加入群组时间';
+
+comment on column group_members.role is '用户在群组中的角色（member, admin）';
+
+create table messages
+(
+    message_id  serial
+        primary key,
+    sender_id   integer not null
+        references users,
+    receiver_id integer
+        references users,
+    group_id    integer
+        references groups,
+    content     text    not null,
+    sent_at     timestamp default CURRENT_TIMESTAMP
+);
+
+comment on table messages is '消息表';
+
+comment on column messages.message_id is '消息的唯一ID';
+
+comment on column messages.sender_id is '发送者用户ID';
+
+comment on column messages.receiver_id is '接收者用户ID（私聊时）';
+
+comment on column messages.group_id is '接收群组ID（群聊时）';
+
+comment on column messages.content is '消息内容';
+
+comment on column messages.sent_at is '消息发送时间';
+
+create table message_status
+(
+    status_id  serial
+        primary key,
+    message_id integer not null
+        references messages,
+    user_id    integer not null
+        references users,
+    status     varchar(20) default 'sent'::character varying,
+    updated_at timestamp   default CURRENT_TIMESTAMP
+);
+
+comment on table message_status is '消息状态表';
+
+comment on column message_status.status_id is '消息状态的唯一ID';
+
+comment on column message_status.message_id is '消息ID';
+
+comment on column message_status.user_id is '接收者用户ID';
+
+comment on column message_status.status is '消息状态（sent, delivered, read）';
+
+comment on column message_status.updated_at is '状态更新时间';
+
+create table user_sessions
+(
+    session_id    serial
+        primary key,
+    user_id       integer      not null
+        references users,
+    session_token varchar(255) not null
+        unique,
+    created_at    timestamp default CURRENT_TIMESTAMP,
+    expires_at    timestamp    not null
+);
+
+comment on table user_sessions is '用户会话表';
+
+comment on column user_sessions.session_id is '会话的唯一ID';
+
+comment on column user_sessions.user_id is '用户ID';
+
+comment on column user_sessions.session_token is '会话令牌';
+
+comment on column user_sessions.created_at is '会话创建时间';
+
+comment on column user_sessions.expires_at is '会话过期时间';
+
+create table files
+(
+    file_id     serial
+        primary key,
+    user_id     integer      not null
+        references users,
+    file_name   varchar(255) not null,
+    file_path   varchar(255) not null,
+    uploaded_at timestamp default CURRENT_TIMESTAMP
+);
+
+comment on table files is '文件信息表';
+
+comment on column files.file_id is '文件的唯一ID';
+
+comment on column files.user_id is '上传文件的用户ID';
+
+comment on column files.file_name is '文件名';
+
+comment on column files.file_path is '文件存储路径';
+
+comment on column files.uploaded_at is '文件上传时间';
+
+create table message_attachments
+(
+    attachment_id serial
+        primary key,
+    message_id    integer not null
+        references messages,
+    file_id       integer not null
+        references files,
+    created_at    timestamp default CURRENT_TIMESTAMP
+);
+
+comment on table message_attachments is '消息附件表';
+
+comment on column message_attachments.attachment_id is '附件的唯一ID';
+
+comment on column message_attachments.message_id is '关联的消息ID';
+
+comment on column message_attachments.file_id is '关联的文件ID';
+
+comment on column message_attachments.created_at is '附件添加时间';
+
+create table user_blacklist
+(
+    blacklist_id    serial
+        primary key,
+    user_id         integer not null
+        references users,
+    blocked_user_id integer not null
+        references users,
+    created_at      timestamp default CURRENT_TIMESTAMP
+);
+
+comment on table user_blacklist is '用户黑名单表';
+
+comment on column user_blacklist.blacklist_id is '黑名单的唯一ID';
+
+comment on column user_blacklist.user_id is '用户ID';
+
+comment on column user_blacklist.blocked_user_id is '被拉黑的用户ID';
+
+comment on column user_blacklist.created_at is '拉黑时间';
+

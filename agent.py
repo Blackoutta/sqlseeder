@@ -10,7 +10,6 @@ from langchain_openai import ChatOpenAI
 from loguru import logger
 
 from db_tool import DbTool
-from ddl_loader import load_ddl_postgres_13
 from prompt_gen import get_gen_prompt, GenPromptOutputParser
 from prompt_revise import get_revise_prompt, RevisePromptOutputParser, get_revise_request_prompt
 from tree_walker import build_tree, traverse_and_collect_names
@@ -29,7 +28,6 @@ class Agent:
                  ):
         self.ddl_dict = ddl_dict  # ddl
         self.queue = queue.Queue()
-        self.counter = {}  # 表计数
         self.generated = {}  # 已生成的SQL
         self.optimized = []  # 已优化的SQL
         self.llm = ChatOpenAI(model=model,
@@ -55,7 +53,7 @@ class Agent:
         logger.warning(f"revising stmt: {stmt}")
         session_id = str(uuid.uuid4())
         chain: Runnable = (get_revise_prompt() | self.llm | RevisePromptOutputParser())
-        with_message_history = RunnableWithMessageHistory(
+        with_message_history: Runnable = RunnableWithMessageHistory(
             chain,
             self.get_session_history,
             input_messages_key="input",
@@ -75,7 +73,6 @@ class Agent:
             'get_data_example_by_table': self.db_tool.get_data_example_by_table,
             'insert_to_db': self.db_tool.execute_sql_insert,
             'check_table_ddl': self.ddl_dict.get,
-            'tool_reminder': self.db_tool.tool_reminder()
         }
 
         for i in range(self.loop_cnt):
@@ -88,7 +85,7 @@ class Agent:
                 raise ValueError(f"invalid next tool: {next_tool}")
             tool_param = next_step['tool_input']
             exec_result = func(tool_param)
-            logger.debug(f'tool call result: {exec_result}')
+            logger.debug(f'tool: {next_tool} returned result:\n {exec_result}')
             result = with_message_history.invoke(
                 input={"input": f"tool call: {next_tool} returned: {exec_result}"},
                 config={"configurable": {"session_id": session_id}},
@@ -128,6 +125,7 @@ class Agent:
     def generate(self, target_table: str):
         self.queue.put(target_table)
 
+        counter = {}
         while not self.queue.empty():
             logger.debug(f'current queue size: {self.queue.qsize()}')
             target = self.queue.get()
@@ -158,14 +156,15 @@ class Agent:
                 # 跳过自依赖
                 if ft.lower() == target.lower():
                     continue
-                if ft not in self.counter:
-                    self.counter[ft] = 1
+                if ft not in counter:
+                    counter[ft] = 1
                 else:
-                    self.counter[ft] = self.counter[ft] + 1
+                    counter[ft] = counter[ft] + 1
 
-                if self.counter[ft] <= self.threshold:
+                if counter[ft] <= self.threshold:
                     logger.debug(f'enqueue: {ft}')
                     self.queue.put(ft)
+        logger.debug(f'generated before build tree: {self.generated}')
         root = build_tree(self.generated)
         tables_in_order = traverse_and_collect_names(root)
         for table in tables_in_order:
@@ -179,7 +178,8 @@ class Agent:
         his = self.db_tool.get_data_example_by_table(target)
         if his is None or len(his) == 0:
             return ""
-        logger.debug(f'existing data: {his}')
+
+        logger.debug(f'existing data: {his[-3:]}')
         return str(his)
 
     def extract_table_name(self, s):
@@ -188,29 +188,3 @@ class Agent:
         if match:
             return match.group(1)
         return None
-
-
-if __name__ == '__main__':
-    with open('test_data/ddl.txt', 'r') as f:
-        d = load_ddl_postgres_13(f.read())
-
-    db_conn_param = {
-        'dbname': 'forex_hdge',
-        'user': 'root',
-        'password': 'root',
-        'host': 'localhost',
-        'port': '5432'
-    }
-    agent = Agent(ddl_dict=d,
-                  db_conn_param=db_conn_param,
-                  loop_cnt=30,
-                  model='glm-4-9b-chat',
-                  api_key='EMPTY',
-                  api_base_url='"http://localhost:6006/v1"',
-                  temperature=0.0,
-                  max_tokens=18000,
-                  )
-    agent.generate('trading_task')
-    agent.save()
-
-    print("ALL DONE!!!")
