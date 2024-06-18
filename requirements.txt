@@ -1,0 +1,5 @@
+langchain_community==0.2.5
+langchain_core==0.2.8
+langchain_openai==0.1.8
+loguru==0.7.2
+psycopg2_binary==2.9.9
