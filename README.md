@@ -21,8 +21,8 @@
 - Postgres 13
 
 ## 实机演示
-抖音: https://v.douyin.com/ijKMdTSk/ 
-bilibili: https://www.bilibili.com/video/BV14zgxeBE9W/
+- 抖音: https://v.douyin.com/ijKMdTSk/ 
+- bilibili: https://www.bilibili.com/video/BV14zgxeBE9W/
 
 ## 快速开始
 
