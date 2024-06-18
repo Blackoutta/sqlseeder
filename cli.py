@@ -21,6 +21,8 @@ def get_user_input():
     parser.add_argument('--api-base-url', type=str, required=True, help='API base URL for the agent')
     parser.add_argument('--temperature', type=float, default=0.0, help='Temperature for the agent')
     parser.add_argument('--max-tokens', type=int, default=18000, help='Maximum tokens for the agent')
+    parser.add_argument('--debug-level', type=str, default='INFO',
+                        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], help='Debug level for logging')
 
     args = parser.parse_args()
     return args
@@ -44,11 +46,11 @@ def print_and_select_table(d):
 
 
 if __name__ == '__main__':
+    args = get_user_input()
+
     # logger setting
     logger.remove()
-    logger.add(sys.stderr, format="<green>{time}</green> <level>{message}</level>", level="INFO")
-
-    args = get_user_input()
+    logger.add(sys.stderr, format="<green>{time}</green> <level>{message}</level>", level=args.debug_level)
 
     with open(args.ddl_file, 'r') as f:
         d = load_ddl_postgres_13(f.read())
@@ -76,3 +78,4 @@ if __name__ == '__main__':
         print(f"You selected: {selected}")
         agent.generate(selected)
         agent.save()
+        input("Press Enter to continue...")

@@ -4,6 +4,7 @@ import uuid
 
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
+from langchain_core.runnables import Runnable
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_openai import ChatOpenAI
 from loguru import logger
@@ -53,7 +54,7 @@ class Agent:
         """
         logger.warning(f"revising stmt: {stmt}")
         session_id = str(uuid.uuid4())
-        chain = (get_revise_prompt() | self.llm | RevisePromptOutputParser())
+        chain: Runnable = (get_revise_prompt() | self.llm | RevisePromptOutputParser())
         with_message_history = RunnableWithMessageHistory(
             chain,
             self.get_session_history,
@@ -77,7 +78,7 @@ class Agent:
         }
 
         for i in range(self.loop_cnt):
-            logger.info(f"revision attempt {i+1}")
+            logger.info(f"revision attempt {i + 1}")
             if next_tool == 'finish':
                 logger.success('revise finished!')
                 return None
@@ -135,7 +136,7 @@ class Agent:
             history = self.history_as_prompt(target)
 
             # 大语言模型生成语句
-            gen_chain = (get_gen_prompt() | self.llm | GenPromptOutputParser())
+            gen_chain: Runnable = (get_gen_prompt() | self.llm | GenPromptOutputParser())
             result = gen_chain.invoke({"ddl": ddl, "history": history})
 
             # 记录生成的语句
@@ -168,9 +169,10 @@ class Agent:
 
     def history_as_prompt(self, target) -> str:
         his = self.db_tool.get_data_example_by_table(target)
-        if his is None:
+        if his is None or len(his) == 0:
             return ""
-        return '\n'.join(his)
+        logger.debug(f'existing data: {his}')
+        return str(his)
 
     def extract_table_name(self, s):
         # 使用正则表达式匹配表名

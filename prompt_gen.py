@@ -31,7 +31,6 @@ def get_gen_prompt():
             - foreign_table_1
             - foreign_table_2
             ```
-
             """
         ),
         HumanMessagePromptTemplate.from_template(
@@ -40,12 +39,12 @@ def get_gen_prompt():
             ```sql
             {ddl}
             ```
-            examples:
+            existing data as examples:
             {history}
             
             Requirements:
             - all fields in ddl must appear
-            - 'id' field must appear
+            - 'id' field must appear and should be different from the ids in examples given.
             - ignore all jsonb fields
             - all fields appeared must have a valid value.
             - values should be different from the examples given, especially for fields that are highly distinguishable.

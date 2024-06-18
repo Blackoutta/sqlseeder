@@ -1,6 +1,7 @@
 from typing import TypedDict
 
 import psycopg2
+from loguru import logger
 from psycopg2 import Error
 
 
@@ -9,7 +10,7 @@ class DbTool:
         self.connection_params = connection_params
 
     def execute_sql_insert(self, sql_string):
-        print(f'executing insert stmt:{sql_string}')
+        logger.debug(f'executing insert stmt:{sql_string}')
         connection = None
         cursor = None
         try:
@@ -24,7 +25,7 @@ class DbTool:
             connection.commit()
 
             # 返回None表示没有错误
-            print('insert success')
+            logger.debug('insert success')
             return None
 
         except Error as e:
@@ -94,4 +95,3 @@ if __name__ == '__main__':
     res = db_tool.execute_sql_query("""
     select * FROM currency;
     """)
-    print(res)
