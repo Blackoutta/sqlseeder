@@ -1,4 +1,7 @@
 import argparse
+import sys
+
+from loguru import logger
 
 from agent import Agent
 from ddl_loader import load_ddl_postgres_13
@@ -41,6 +44,10 @@ def print_and_select_table(d):
 
 
 if __name__ == '__main__':
+    # logger setting
+    logger.remove()
+    logger.add(sys.stderr, format="<green>{time}</green> <level>{message}</level>", level="INFO")
+
     args = get_user_input()
 
     with open(args.ddl_file, 'r') as f:

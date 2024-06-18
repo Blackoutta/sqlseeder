@@ -3,6 +3,7 @@ import json
 from langchain_core.output_parsers import BaseOutputParser
 from langchain_core.output_parsers.base import T
 from langchain_core.prompts import *
+from loguru import logger
 
 
 def get_gen_prompt():
@@ -95,7 +96,7 @@ class GenPromptOutputParser(BaseOutputParser):
         try:
             return parse_text_to_dict(text)
         except Exception as e:
-            print(f'Failed to parse text result:\n{text}\n')
+            logger.error(f'Failed to parse text result:\n{text}\n')
 
 
 if __name__ == '__main__':

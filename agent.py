@@ -6,6 +6,7 @@ from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_openai import ChatOpenAI
+from loguru import logger
 
 from db_tool import DbTool
 from ddl_loader import load_ddl_postgres_13
@@ -50,6 +51,7 @@ class Agent:
         :param err:  具体问题
         :return: 错误信息, 为None表示没有错误
         """
+        logger.warning(f"revising stmt: {stmt}")
         session_id = str(uuid.uuid4())
         chain = (get_revise_prompt() | self.llm | RevisePromptOutputParser())
         with_message_history = RunnableWithMessageHistory(
@@ -75,15 +77,16 @@ class Agent:
         }
 
         for i in range(self.loop_cnt):
+            logger.info(f"revision attempt {i+1}")
             if next_tool == 'finish':
-                print('revise finished!')
+                logger.success('revise finished!')
                 return None
             func = tools.get(next_tool)
             if func is None:
                 raise ValueError(f"invalid next tool: {next_tool}")
             tool_param = next_step['tool_input']
             exec_result = func(tool_param)
-            print(f'tool call result: {exec_result}')
+            logger.debug(f'tool call result: {exec_result}')
             result = with_message_history.invoke(
                 input={"input": f"tool call: {next_tool} returned: {exec_result}"},
                 config={"configurable": {"session_id": session_id}},
@@ -112,16 +115,17 @@ class Agent:
                 print(insert_err)
                 revise_err = self.revise_loop(stmt, insert_err)
                 if revise_err is not None:
-                    raise ValueError(revise_err)
-        print("All statements inserted!")
+                    logger.error(revise_err)
+                    return
+        logger.success("All statements inserted!")
 
     def generate(self, target_table: str):
         self.queue.put(target_table)
 
         while not self.queue.empty():
-            print(f'current queue size: {self.queue.qsize()}')
+            logger.debug(f'current queue size: {self.queue.qsize()}')
             target = self.queue.get()
-            print(f'generating for target: {target}')
+            logger.info(f'generating for target: {target}')
             # 获取目标表DLL
             ddl = self.ddl_dict.get(target)
             if ddl is None:
@@ -129,7 +133,6 @@ class Agent:
 
             # 获取目标表已生成的语句
             history = self.history_as_prompt(target)
-            # print(f'history: {history}')
 
             # 大语言模型生成语句
             gen_chain = (get_gen_prompt() | self.llm | GenPromptOutputParser())
@@ -138,13 +141,13 @@ class Agent:
             # 记录生成的语句
             stmt = result['statement']
             fts = result['foreign_tables']
-            print(f'generated: {stmt}')
+            logger.success(f'generated: {stmt}')
             if self.generated.get(target) is not None:
                 self.generated[target]['stmts'].append(stmt)
             else:
                 self.generated[target] = {'stmts': [stmt], 'foreign_tables': fts}
 
-            print(f'foreign tables: {fts}')
+            logger.debug(f'foreign tables: {fts}')
             for ft in fts:
                 # 跳过自依赖
                 if ft.lower() == target.lower():
@@ -155,13 +158,13 @@ class Agent:
                     self.counter[ft] = self.counter[ft] + 1
 
                 if self.counter[ft] <= self.threshold:
-                    print(f'enqueue: {ft}')
+                    logger.debug(f'enqueue: {ft}')
                     self.queue.put(ft)
         root = build_tree(self.generated)
         tables_in_order = traverse_and_collect_names(root)
         for table in tables_in_order:
             self.optimized.append(self.generated.get(table))
-        print('All statements generated!')
+        logger.success('All statements generated!')
 
     def history_as_prompt(self, target) -> str:
         his = self.db_tool.get_data_example_by_table(target)

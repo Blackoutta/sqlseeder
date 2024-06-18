@@ -3,6 +3,7 @@ import re
 from langchain_core.output_parsers import BaseOutputParser
 from langchain_core.output_parsers.base import T
 from langchain_core.prompts import *
+from loguru import logger
 
 
 def get_revise_prompt():
@@ -109,6 +110,5 @@ def extract_tool_call(text):
 
 class RevisePromptOutputParser(BaseOutputParser):
     def parse(self, text: str) -> T:
-        print(f'### parsing context###:\n{text}')
-        print("--------------------------------------")
+        logger.debug(f'### revising in-middle process###:\n{text}\n')
         return {'parsed': extract_tool_call(text), 'output': text}
