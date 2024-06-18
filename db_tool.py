@@ -70,6 +70,21 @@ class DbTool:
         SELECT * FROM {}
         """.format(table_name))
 
+    def tool_reminder(self):
+        return """
+        You have the following tools to use:
+            - tool_name: get_next_valid_id
+              tool_input: only a SQL query targeting a specific table to find the next valid id to use, example: SELECT nextval('table_name_id_seq')
+            - tool_name: get_data_example_by_table
+              tool_input: only a string representing table name
+            - tool_name: insert_to_db 
+              tool_input: only a SQL insert statement
+            - tool_name: check_table_ddl
+              tool_input: only a table name
+            - tool_name: finish
+              tool_input: None
+        """
+
 
 class BaseTool(TypedDict, total=False):
     query_db: str

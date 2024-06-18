@@ -75,10 +75,11 @@ class Agent:
             'get_data_example_by_table': self.db_tool.get_data_example_by_table,
             'insert_to_db': self.db_tool.execute_sql_insert,
             'check_table_ddl': self.ddl_dict.get,
+            'tool_reminder': self.db_tool.tool_reminder()
         }
 
         for i in range(self.loop_cnt):
-            logger.info(f"revision attempt {i + 1}")
+            logger.info(f"revision attempt {i + 1} on stmt: {stmt}")
             if next_tool == 'finish':
                 logger.success('revise finished!')
                 return None
@@ -102,6 +103,8 @@ class Agent:
         return self.store[session_id]
 
     def save(self):
+        logger.info(f'{len(self.optimized)} entries of data to insert!')
+        logger.debug(f'{self.optimized}')
         for data in self.optimized:
             if data is None:
                 continue
@@ -119,6 +122,8 @@ class Agent:
                     logger.error(revise_err)
                     return
         logger.success("All statements inserted!")
+        self.generated = {}
+        self.optimized = []
 
     def generate(self, target_table: str):
         self.queue.put(target_table)
@@ -164,7 +169,10 @@ class Agent:
         root = build_tree(self.generated)
         tables_in_order = traverse_and_collect_names(root)
         for table in tables_in_order:
-            self.optimized.append(self.generated.get(table))
+            generated = self.generated.get(table)
+            if generated is None:
+                continue
+            self.optimized.append(generated)
         logger.success('All statements generated!')
 
     def history_as_prompt(self, target) -> str:

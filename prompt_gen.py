@@ -13,6 +13,7 @@ def get_gen_prompt():
             You are a helpful assistant that creates SQL insert statements based on given table schema.
             Your SQL dialect is Postgres 13.
             
+            
             Rules:
             - don't make up foreign tables, look for them in ddl where the 'references' key word appear.
             - always end your statement with semi-column ';'.
@@ -35,19 +36,21 @@ def get_gen_prompt():
         ),
         HumanMessagePromptTemplate.from_template(
             """
-            please generate a SQL insert based on this schema:
+            please generate a SQL insert based on the ddl provided:
+            Requirements:
+            - all fields in ddl must appear
+            - 'id' field must appear and should be different from the ids in examples given.
+            - ignore all jsonb fields
+            - foreign keys cannot be null
+            - values should be different from the examples given, especially for fields that are highly distinguishable.
+            - generated data should look as realistic as possible
+            
+            ddl:
             ```sql
             {ddl}
             ```
             existing data as examples:
             {history}
-            
-            Requirements:
-            - all fields in ddl must appear
-            - 'id' field must appear and should be different from the ids in examples given.
-            - ignore all jsonb fields
-            - all fields appeared must have a valid value.
-            - values should be different from the examples given, especially for fields that are highly distinguishable.
             """
         )
     ])

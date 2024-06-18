@@ -23,25 +23,26 @@ def get_revise_prompt():
             - tool_name: get_next_valid_id
               tool_input: only a SQL query targeting a specific table to find the next valid id to use, example: SELECT nextval('table_name_id_seq')
             - tool_name: get_data_example_by_table
-              tool_input: a string representing table name
+              tool_input: only a string representing table name
             - tool_name: insert_to_db 
-              tool_input: str(a SQL insert statement)
+              tool_input: only a SQL insert statement
             - tool_name: check_table_ddl
-              tool_input: str(a table name)
+              tool_input: only a table name
             - tool_name: finish
               tool_input: None
+            - tool_name: tool_reminder
+            - tool_input: None
               
             tool tips:
             - if no tools can be used, be sure to use the 'finish' tool.
             - if a tool returns None, that means it executed successfully.
+            - once the goal has been completed, use the 'finish' tool immediately.
             
             # Response Format#
             You only respond with the follow YAML format, do not output anything else: 
             ```yaml
-            goals:
-            - goal 1
-            - goal 2
-            - goal 3
+            
+            goals: what is my ultimate goal?
             
             previous_tool_call_returned: describe the insights you get from previous tool call
             
