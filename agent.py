@@ -8,27 +8,36 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_openai import ChatOpenAI
 
 from db_tool import DbTool
-from ddl_loader import load_ddl
+from ddl_loader import load_ddl_postgres_13
 from prompt_gen import get_gen_prompt, GenPromptOutputParser
 from prompt_revise import get_revise_prompt, RevisePromptOutputParser, get_revise_request_prompt
 from tree_walker import build_tree, traverse_and_collect_names
 
 
 class Agent:
-    def __init__(self, ddl_dict: dict, db_conn_param: dict, loop_cnt: int):
+    def __init__(self,
+                 ddl_dict: dict,
+                 db_conn_param: dict,
+                 model: str,
+                 loop_cnt=30,
+                 api_key=None,
+                 api_base_url=None,
+                 temperature: float = 0,
+                 max_tokens: int = 18000,
+                 ):
         self.ddl_dict = ddl_dict  # ddl
         self.queue = queue.Queue()
         self.counter = {}  # 表计数
         self.generated = {}  # 已生成的SQL
         self.optimized = []  # 已优化的SQL
-        self.gen_history = {}  # 已生成SQL的记录，注入到prompt中让大语言模型尽量避开重复的数据
-        self.model = 'glm-4-9b-chat'
+        self.model = model,
         self.llm = ChatOpenAI(model=self.model,
-                              temperature=0,
+                              temperature=temperature,
                               verbose=True,
-                              max_tokens=18000,
-                              api_key="EMPTY",
-                              base_url="http://localhost:6006/v1",
+                              max_tokens=max_tokens,
+                              api_key=api_key,
+                              api_base_url=api_base_url,
+                              base_url=api_base_url,
                               )
         self.threshold = 1
         self.db_tool = DbTool(db_conn_param)
@@ -92,7 +101,7 @@ class Agent:
 
     def save(self):
         for data in self.optimized:
-            if data is not None:
+            if data is None:
                 continue
             stmts = data['stmts']
             for stmt in stmts:
@@ -125,11 +134,8 @@ class Agent:
             # print(f'history: {history}')
 
             # 大语言模型生成语句
-            # print(f'ddl: {ddl}')
             gen_chain = (get_gen_prompt() | self.llm | GenPromptOutputParser())
             result = gen_chain.invoke({"ddl": ddl, "history": history})
-            # ctx = result['context']
-            # print(f'context: {ctx}')
 
             # 记录生成的语句
             stmt = result['statement']
@@ -139,12 +145,6 @@ class Agent:
                 self.generated[target]['stmts'].append(stmt)
             else:
                 self.generated[target] = {'stmts': [stmt], 'foreign_tables': fts}
-
-            # 记录生成语句历史
-            if self.gen_history.get(target) is not None:
-                self.gen_history[target].append(stmt)
-            else:
-                self.gen_history[target] = [stmt]
 
             print(f'foreign tables: {fts}')
             for ft in fts:
@@ -166,7 +166,7 @@ class Agent:
         print('All statements generated!')
 
     def history_as_prompt(self, target) -> str:
-        his = self.gen_history.get(target)
+        his = self.db_tool.get_data_example_by_table(target)
         if his is None:
             return ""
         return '\n'.join(his)
@@ -180,8 +180,8 @@ class Agent:
 
 
 if __name__ == '__main__':
-    with open('./ddl.txt', 'r') as f:
-        d = load_ddl(f.read())
+    with open('test_data/ddl.txt', 'r') as f:
+        d = load_ddl_postgres_13(f.read())
 
     db_conn_param = {
         'dbname': 'forex_hdge',
@@ -190,10 +190,16 @@ if __name__ == '__main__':
         'host': 'localhost',
         'port': '5432'
     }
-
-    agent = Agent(ddl_dict=d, db_conn_param=db_conn_param, loop_cnt=25)
+    agent = Agent(ddl_dict=d,
+                  db_conn_param=db_conn_param,
+                  loop_cnt=30,
+                  model='glm-4-9b-chat',
+                  api_key='EMPTY',
+                  api_base_url='"http://localhost:6006/v1"',
+                  temperature=0.0,
+                  max_tokens=18000,
+                  )
     agent.generate('trading_task')
-
-    # agent.save()
+    agent.save()
 
     print("ALL DONE!!!")

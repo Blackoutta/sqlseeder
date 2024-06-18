@@ -1,7 +1,7 @@
 import re
 
 
-def load_ddl(sql_ddl):
+def load_ddl_postgres_13(sql_ddl):
     tables = {}
     current_table = None
     lines = sql_ddl.splitlines()
@@ -44,6 +44,6 @@ def load_ddl(sql_ddl):
 
 
 if __name__ == '__main__':
-    with open('./ddl.txt') as f:
-        m = load_ddl(f.read())
+    with open('test_data/ddl.txt') as f:
+        m = load_ddl_postgres_13(f.read())
     print(m['account'])
