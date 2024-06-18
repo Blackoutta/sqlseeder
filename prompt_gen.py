@@ -44,6 +44,7 @@ def get_gen_prompt():
             - foreign keys cannot be null
             - values should be vary from the examples given and be realistic
             - values should follow their field constraints in ddl
+            - ignore 'password' related fields
             
             ddl:
             ```sql

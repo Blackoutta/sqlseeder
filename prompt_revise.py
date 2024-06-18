@@ -34,13 +34,13 @@ def get_revise_prompt():
             tool tips:
             - if no tools can be used, be sure to use the 'finish' tool.
             - if a tool returns None, that means it executed successfully.
-            - once the goal has been completed, use the 'finish' tool immediately.
+            - once a insert succeeds, use the 'finish' tool immediately, do not insert twice.
             
             # Response Format#
             You only respond with the follow YAML format, do not output anything else: 
             ```yaml
             
-            goals: what is my ultimate goal?
+            goals: what is my goal?
             
             previous_tool_call_returned: describe the insights you get from previous tool call
             
@@ -80,7 +80,7 @@ def get_revise_request_prompt():
             ```err```.
             
             your goal is to use your tools and your tools only to eventually insert the statement successfully.
-            if the problem is solved, make sure to use the 'finish' tool.
+            if the problem is solved, make sure to use the 'finish' tool, do not insert twice.
             try different solution if previous attempts didn't success.
             you are free to manipulate statements for tool input.
             only use SELECT, UPDATE operations with tools, do not modify table schemas or create new tables.
@@ -91,7 +91,6 @@ def get_revise_request_prompt():
             - ignore all jsonb fields
             - all fields appeared must have a valid value.
             - values should be different from the examples given, especially for fields that are highly distinguishable.
-
             """)
 
 
