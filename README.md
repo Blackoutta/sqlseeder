@@ -21,8 +21,7 @@
 - Postgres 13
 
 ## 实机演示
-
-// todo 此处插入视频
+抖音: https://v.douyin.com/ijKMdTSk/ 
 
 ## 快速开始
 
@@ -36,9 +35,9 @@
     ```bash
     pip install -r requirements.txt
     ```
-3. 本项目使用`glm-4-9b-chat`模型开发完成，但与模型交互使用的是OpenAI的接口，所以可是随时换你喜欢的模型上来。
+3. 本项目使用`glm-4-9b-chat`模型开发完成，但与模型交互使用的是OpenAI的接口，所以可以随时换成你喜欢的模型。
 
-4. 非常建议使用`glm-4-9b-chat`模型，模型下载地址：
+4. 非常建议使用`glm-4-9b-chat`模型，中文英文效果都很好，在没有微调的情况下也能胜任本项目的任务，模型下载地址：
 - https://huggingface.co/THUDM/glm-4-9b-chat
 - https://modelscope.cn/models/ZhipuAI/glm-4-9b-chat
 
@@ -84,7 +83,7 @@ volumes:
 docker-compose up -d
 ```
 
-7. 使用示例数据库建表，示例数据库ddl的dll在test_data/im.txt
+7. 使用示例数据库建表，示例数据库的dll在test_data/im.txt
 8. 启动Agent
 ```bash
 python cli.py --ddl-file test_data/im.txt \
