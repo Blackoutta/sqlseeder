@@ -1,0 +1,1 @@
+python cli.py --ddl-file test_data/ddl.txt --dbname forex_hdge --user root --password root --host localhost --port 5432 --loop-cnt 30 --model glm-4-9b-chat --api-key EMPTY --api-base-url http://localhost:6006/v1 --temperature 0.0 --max-tokens 18000

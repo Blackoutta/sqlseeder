@@ -30,13 +30,11 @@ class Agent:
         self.counter = {}  # 表计数
         self.generated = {}  # 已生成的SQL
         self.optimized = []  # 已优化的SQL
-        self.model = model,
-        self.llm = ChatOpenAI(model=self.model,
+        self.llm = ChatOpenAI(model=model,
                               temperature=temperature,
                               verbose=True,
                               max_tokens=max_tokens,
                               api_key=api_key,
-                              api_base_url=api_base_url,
                               base_url=api_base_url,
                               )
         self.threshold = 1
